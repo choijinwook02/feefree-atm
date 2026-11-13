@@ -88,7 +88,7 @@
             <span class="sm:hidden">GPS 실시간</span>
           </span>
         </div>
-        <p class="text-[11px] text-slate-400 hidden md:block">국내·해외 어디서나 실제 OpenStreetMap ATM 탐색 & 현지 수수료 자동 판별</p>
+        <p class="text-[11px] text-slate-400 hidden md:block">국내·해외 어디서나 실제 OpenStreetMap ATM 탐색 & 구글 시트 수수료 실시간 동기화</p>
       </div>
     </div>
 
@@ -206,7 +206,7 @@
           <span>지도 중심을 내 위치로 지정</span>
         </button>
         <p class="text-[9px] text-slate-500 leading-tight">
-          * 지도 이동 후 <strong>[지도 영역 ATM 전수 불러오기]</strong>를 누르면 국내·해외 어디든 실제 OSM ATM이 자동 수집됩니다.
+          * 구글 시트 표에서 수수료를 수정하면 앱 실행 시 자동으로 최신 데이터가 반영됩니다.
         </p>
       </div>
     </div>
@@ -430,7 +430,7 @@
       {"id": 22, "region": "korea", "city": "seoul", "name": "신한은행 SOL트래블 외화 ATM (명동지점)", "lat": 37.5645, "lng": 126.9850, "feeType": "FREE", "feeAmount": "0원 (수수료 면제)", "cards": "신한 SOL트래블, Visa", "tip": "SOL트래블 체크카드 수수료 0원 기기.", "verified": 490},
       {"id": 23, "region": "korea", "city": "seoul", "name": "하나은행 외화 ATM (홍대입구역 9번 출구)", "lat": 37.5568, "lng": 126.9238, "feeType": "FREE", "feeAmount": "0원 (수수료 면제)", "cards": "트래블로그, 트래블월렛", "tip": "홍대 관광 중심지 내 트래블로그 인출 수수료 0원 기기입니다.", "verified": 410},
 
-      // 📍 [일본 도쿄 전역]
+      // 📍 [일본 도쿄·간토 전역]
       {"id": 101, "region": "overseas", "city": "tokyo", "name": "Seven Bank ATM (신주쿠역 동쪽 출구 세븐일레븐)", "lat": 35.6909, "lng": 139.7005, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그, 트래블월렛, Visa, Master", "tip": "일본 세븐일레븐 내 세븐뱅크 기기는 트래블카드 출금 시 수수료 0엔!", "verified": 842},
       {"id": 102, "region": "overseas", "city": "tokyo", "name": "AEON Bank ATM (신주쿠 미니스톱 편의점)", "lat": 35.6922, "lng": 139.7025, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그(Master), JCB", "tip": "미니스톱 및 이온몰 내 이온뱅크 기기는 수수료 완전 무료입니다.", "verified": 489},
       {"id": 103, "region": "overseas", "city": "tokyo", "name": "Lawson Bank ATM (가부키초 1번가)", "lat": 35.6938, "lng": 139.7012, "feeType": "MODERATE", "feeAmount": "110~220 JPY (약 1,500원)", "cards": "일반 해외체크카드", "tip": "로손 편의점 ATM은 시간대 및 카드에 따라 소액 수수료 부과.", "verified": 174},
@@ -439,51 +439,152 @@
       {"id": 106, "region": "overseas", "city": "tokyo", "name": "Seven Bank ATM (아키하바라 전자상가 출구)", "lat": 35.6983, "lng": 139.7731, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그, 트래블월렛, JCB", "tip": "아키하바라역 개찰구 앞 세븐뱅크 기기.", "verified": 410},
       {"id": 107, "region": "overseas", "city": "tokyo", "name": "Seven Bank ATM (아사쿠사 센소지 카미나리몬점)", "lat": 35.7115, "lng": 139.7965, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "아사쿠사 관광지 앞 세븐일레븐 내부.", "verified": 520},
       {"id": 108, "region": "overseas", "city": "tokyo", "name": "Euronet ATM (신주쿠 골든가이 입구 사설기기)", "lat": 35.6942, "lng": 139.7045, "feeType": "HIGH", "feeAmount": "500 JPY + 13% 환율 마진", "cards": "절대 이용 주의", "tip": "⚠️ 사설 독립 ATM으로 강제 환전 마크업 발생! 옆 세븐일레븐을 이용하세요.", "verified": 710},
+      {"id": 109, "region": "overseas", "city": "tokyo", "name": "Seven Bank ATM (이케부쿠로역 동쪽 출구)", "lat": 35.7295, "lng": 139.7109, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "이케부쿠로 번화가 세븐뱅크 무료 기기.", "verified": 430},
+      {"id": 110, "region": "overseas", "city": "tokyo", "name": "Seven Bank ATM (도쿄역 야에스 북쪽 출구)", "lat": 35.6812, "lng": 139.7671, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "도쿄역 신칸센 환승 구역 인근 세븐뱅크.", "verified": 610},
+      {"id": 111, "region": "overseas", "city": "tokyo", "name": "Seven Bank ATM (요코하마 미나토미라이역)", "lat": 35.4578, "lng": 139.6325, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "요코하마 랜드마크타워 인근 세븐뱅크 무료 기기.", "verified": 340},
+      {"id": 112, "region": "overseas", "city": "tokyo", "name": "AEON Bank ATM (가와사키역 라조나 쇼핑몰)", "lat": 35.5322, "lng": 139.6968, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그(Master), JCB", "tip": "가와사키 대형 쇼핑몰 내 이온뱅크 무료 기기.", "verified": 260},
+      {"id": 113, "region": "overseas", "city": "tokyo", "name": "Seven Bank ATM (하네다공항 제3터미널 입국장)", "lat": 35.5446, "lng": 139.7679, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "도쿄 하네다공항 도착 즉시 수수료 0엔으로 엔화 인출 가능!", "verified": 890},
+      {"id": 114, "region": "overseas", "city": "tokyo", "name": "Seven Bank ATM (나리타공항 제1터미널 1층)", "lat": 35.7647, "lng": 140.3863, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "나리타공항 입국 로비 세븐뱅크 무료 기기.", "verified": 950},
+      {"id": 115, "region": "overseas", "city": "tokyo", "name": "Seven Bank ATM (사이타마 오미야역 서쪽 출구)", "lat": 35.9063, "lng": 139.6240, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "사이타마 오미야역 앞 세븐뱅크 무료 기기.", "verified": 210},
+      {"id": 116, "region": "overseas", "city": "tokyo", "name": "Seven Bank ATM (지바 마쿠하리 멧세 앞)", "lat": 35.6485, "lng": 140.0347, "feeType": "FREE", "feeAmount": "0 JPY (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "지바 가이힌마쿠하리역 인근 세븐뱅크.", "verified": 280},
 
       // 📍 [베트남 다낭 전역]
       {"id": 201, "region": "overseas", "city": "danang", "name": "VPBank ATM (다낭 한시장/박당 거리)", "lat": 16.0678, "lng": 108.2235, "feeType": "FREE", "feeAmount": "0 VND (수수료 면제)", "cards": "트래블월렛(Visa), 트래블로그", "tip": "★다낭 배낭여행 필수 성지! 초록색 VPBank는 현지 기기 수수료 0원!", "verified": 920},
       {"id": 202, "region": "overseas", "city": "danang", "name": "TPBank ATM (다낭 보라색 라이브뱅크)", "lat": 16.0692, "lng": 108.2218, "feeType": "FREE", "feeAmount": "0 VND (수수료 면제)", "cards": "트래블월렛, 트래블로그, EXK", "tip": "VPBank와 함께 베트남 수수료 완전 무료 양대 산맥 은행입니다.", "verified": 640},
       {"id": 203, "region": "overseas", "city": "danang", "name": "Vietcombank ATM (다낭 대성당 앞)", "lat": 16.0664, "lng": 108.2232, "feeType": "MODERATE", "feeAmount": "50,000 VND (약 2,700원)", "cards": "Visa, Mastercard 공통", "tip": "국영은행으로 안정적이나 1회 인출 시 5만 동 수수료 발생.", "verified": 182},
       {"id": 204, "region": "overseas", "city": "danang", "name": "VPBank ATM (미케비치 해변 도로점)", "lat": 16.0595, "lng": 108.2450, "feeType": "FREE", "feeAmount": "0 VND (수수료 면제)", "cards": "트래블월렛, 트래블로그", "tip": "미케비치 리조트 밀집 지역 내 수수료 0원 VPBank 기기.", "verified": 430},
+      {"id": 205, "region": "overseas", "city": "danang", "name": "TPBank LiveBank (용다리 서쪽 로터리)", "lat": 16.0612, "lng": 108.2225, "feeType": "FREE", "feeAmount": "0 VND (수수료 면제)", "cards": "트래블월렛, 트래블로그", "tip": "다낭 용다리 인근 24시간 무인 라이브뱅크 무료 인출 기기.", "verified": 510},
+      {"id": 206, "region": "overseas", "city": "danang", "name": "VPBank ATM (다낭 국제공항 국제선 입국장)", "lat": 16.0538, "lng": 108.2022, "feeType": "FREE", "feeAmount": "0 VND (수수료 면제)", "cards": "트래블월렛, 트래블로그", "tip": "다낭 공항 도착 직후 수수료 0원으로 베트남 동을 뽑을 수 있는 기기.", "verified": 870},
+      {"id": 207, "region": "overseas", "city": "danang", "name": "BIDV ATM (롯데마트 다낭점 1층)", "lat": 16.0348, "lng": 108.2289, "feeType": "MODERATE", "feeAmount": "33,000 VND (약 1,800원)", "cards": "Visa, Mastercard", "tip": "롯데마트 장보기 전후 이용 가능한 시중은행 기기.", "verified": 215},
+      {"id": 208, "region": "overseas", "city": "danang", "name": "VPBank ATM (빈콤플라자 한강점)", "lat": 16.0718, "lng": 108.2305, "feeType": "FREE", "feeAmount": "0 VND (수수료 면제)", "cards": "트래블월렛, 트래블로그", "tip": "빈콤플라자 쇼핑몰 1층 출입구 옆 수수료 무료 VPBank.", "verified": 390},
+      {"id": 209, "region": "overseas", "city": "danang", "name": "TPBank ATM (안투엉 여행자 거리)", "lat": 16.0492, "lng": 108.2478, "feeType": "FREE", "feeAmount": "0 VND (수수료 면제)", "cards": "트래블월렛, 트래블로그", "tip": "미케비치 남단 안투엉 거리 내 수수료 0원 기기.", "verified": 460},
+      {"id": 210, "region": "overseas", "city": "danang", "name": "VPBank ATM (호이안 올드타운 입구 지점)", "lat": 15.8794, "lng": 108.3280, "feeType": "FREE", "feeAmount": "0 VND (수수료 면제)", "cards": "트래블월렛, 트래블로그", "tip": "다낭 근교 호이안 투본강 인근 수수료 무료 VPBank.", "verified": 540},
 
       // 📍 [태국 방콕 전역]
       {"id": 301, "region": "overseas", "city": "bangkok", "name": "AEON Bank ATM (센트럴월드 4층 쇼핑몰)", "lat": 13.7469, "lng": 100.5393, "feeType": "FREE", "feeAmount": "0 THB (완전 무료)", "cards": "트래블로그(Master), JCB", "tip": "태국 로컬은행 220바트(8,500원)를 피할 수 있는 방콕 내 귀한 무료 기기!", "verified": 780},
       {"id": 302, "region": "overseas", "city": "bangkok", "name": "Bangkok Bank ATM (시암 파라곤)", "lat": 13.7462, "lng": 100.5348, "feeType": "MODERATE", "feeAmount": "220 THB (약 8,500원)", "cards": "Visa, Mastercard, GLN", "tip": "태국 표준 220바트 부과. 'Continue without conversion(DCC 거부)' 필수!", "verified": 234},
       {"id": 303, "region": "overseas", "city": "bangkok", "name": "Euronet ATM (시암 스퀘어 야외기기)", "lat": 13.7450, "lng": 100.5335, "feeType": "HIGH", "feeAmount": "250 THB + 13% 환율 마진", "cards": "모든 카드 주의", "tip": "⚠️ 사설 독립 ATM으로 불리한 자체 환율 강제 적용! 이용 금지.", "verified": 612},
       {"id": 304, "region": "overseas", "city": "bangkok", "name": "AEON Bank ATM (터미널 21 아속 3층)", "lat": 13.7378, "lng": 100.5605, "feeType": "FREE", "feeAmount": "0 THB (완전 무료)", "cards": "트래블로그, JCB", "tip": "수쿰빗 아속역 터미널 21 쇼핑몰 내 수수료 면제 기기.", "verified": 610},
+      {"id": 305, "region": "overseas", "city": "bangkok", "name": "AEON Bank ATM (MBK 센터 2층 연결통로)", "lat": 13.7445, "lng": 100.5299, "feeType": "FREE", "feeAmount": "0 THB (완전 무료)", "cards": "트래블로그(Master), JCB", "tip": "내셔널스타디움역 MBK 쇼핑몰 내 무료 인출 기기.", "verified": 490},
+      {"id": 306, "region": "overseas", "city": "bangkok", "name": "AEON Bank ATM (빅씨 라차담리점 2층)", "lat": 13.7478, "lng": 100.5408, "feeType": "FREE", "feeAmount": "0 THB (완전 무료)", "cards": "트래블로그(Master), JCB", "tip": "센트럴월드 맞은편 빅씨마트 내 이온뱅크 무료 ATM.", "verified": 530},
+      {"id": 307, "region": "overseas", "city": "bangkok", "name": "Kasikorn Bank ATM (카오산 로드 입구)", "lat": 13.7589, "lng": 100.4974, "feeType": "MODERATE", "feeAmount": "220 THB (약 8,500원)", "cards": "Visa, Mastercard", "tip": "카오산로드 초록색 카시콘은행. 220바트 수수료 부과되며 DCC 거부 필수.", "verified": 310},
+      {"id": 308, "region": "overseas", "city": "bangkok", "name": "AEON Bank ATM (아이콘시암 G층)", "lat": 13.7267, "lng": 100.5105, "feeType": "FREE", "feeAmount": "0 THB (완전 무료)", "cards": "트래블로그(Master), JCB", "tip": "짜오프라야 강변 아이콘시암 쇼핑몰 내 수수료 면제 기기.", "verified": 420},
+      {"id": 309, "region": "overseas", "city": "bangkok", "name": "AEON Bank ATM (수완나품 공항 지하철역 인근)", "lat": 13.6900, "lng": 100.7501, "feeType": "FREE", "feeAmount": "0 THB (완전 무료)", "cards": "트래블로그(Master), JCB", "tip": "수완나품 공항 도착 시 일반 은행(220바트) 대신 이용 가능한 무료 기기.", "verified": 740},
 
-      // 📍 [대만 타이베이]
+      // 📍 [대만 타이베이 전역]
       {"id": 401, "region": "overseas", "city": "taipei", "name": "국태세화은행 ATM (시먼딩 세븐일레븐)", "lat": 25.0425, "lng": 121.5075, "feeType": "FREE", "feeAmount": "0 TWD (수수료 면제)", "cards": "트래블로그, 트래블월렛", "tip": "대만 세븐일레븐 및 지하철역 내 국태세화 ATM은 출금 수수료 0원!", "verified": 590},
       {"id": 402, "region": "overseas", "city": "taipei", "name": "대만은행 ATM (Bank of Taiwan 시먼점)", "lat": 25.0412, "lng": 121.5088, "feeType": "FREE", "feeAmount": "0 TWD (수수료 면제)", "cards": "트래블카드 및 EXK", "tip": "국영 대만은행 지점 기기로 수수료 무료 및 환율 우대.", "verified": 280},
       {"id": 403, "region": "overseas", "city": "taipei", "name": "국태세화은행 ATM (타이베이 메인역 지하상가 M6)", "lat": 25.0465, "lng": 121.5170, "feeType": "FREE", "feeAmount": "0 TWD (수수료 면제)", "cards": "트래블로그, 트래블월렛", "tip": "타이베이역 환승 통로 내 수수료 무료 기기.", "verified": 720},
+      {"id": 404, "region": "overseas", "city": "taipei", "name": "국태세화은행 ATM (융캉제 동먼역 5번 출구)", "lat": 25.0338, "lng": 121.5292, "feeType": "FREE", "feeAmount": "0 TWD (수수료 면제)", "cards": "트래블로그, 트래블월렛", "tip": "딘타이펑 본점 및 망고빙수 거리 인근 세븐일레븐 내 무료 기기.", "verified": 480},
+      {"id": 405, "region": "overseas", "city": "taipei", "name": "국태세화은행 ATM (타이베이 101역 지하 1층)", "lat": 25.0330, "lng": 121.5645, "feeType": "FREE", "feeAmount": "0 TWD (수수료 면제)", "cards": "트래블로그, 트래블월렛", "tip": "타이베이 101 타워 푸드코트 입구 쪽 수수료 0원 기기.", "verified": 630},
+      {"id": 406, "region": "overseas", "city": "taipei", "name": "국태세화은행 ATM (스린 야시장 지엔탄역)", "lat": 25.0848, "lng": 121.5250, "feeType": "FREE", "feeAmount": "0 TWD (수수료 면제)", "cards": "트래블로그, 트래블월렛", "tip": "스린 야시장 방문 전 현금 인출하기 가장 좋은 무료 기기.", "verified": 510},
+      {"id": 407, "region": "overseas", "city": "taipei", "name": "Mega Bank ATM (중산역 신광미츠코시 앞)", "lat": 25.0526, "lng": 121.5204, "feeType": "MODERATE", "feeAmount": "100 TWD (약 4,200원)", "cards": "Visa, Mastercard", "tip": "일부 해외 카드 인출 시 100대만달러 수수료 부과 가능.", "verified": 165},
+      {"id": 408, "region": "overseas", "city": "taipei", "name": "대만은행 ATM (타오위안 국제공항 제1터미널)", "lat": 25.0777, "lng": 121.2328, "feeType": "FREE", "feeAmount": "0 TWD (수수료 면제)", "cards": "트래블로그, 트래블월렛", "tip": "타오위안 공항 입국장 환전소 옆 수수료 0원 기기.", "verified": 820},
 
-      // 📍 [프랑스 파리]
+      // 📍 [프랑스 파리 전역]
       {"id": 501, "region": "overseas", "city": "paris", "name": "BNP Paribas ATM (파리 오페라 가르니에 지점)", "lat": 48.8710, "lng": 2.3320, "feeType": "FREE", "feeAmount": "0 EUR (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "프랑스 1위 은행 지점 내부 ATM으로 현지 기기 인출 수수료 0유로!", "verified": 450},
       {"id": 502, "region": "overseas", "city": "paris", "name": "Société Générale ATM (루브르 박물관 앞)", "lat": 48.8625, "lng": 2.3350, "feeType": "FREE", "feeAmount": "0 EUR (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "정규 프랑스 시중은행 ATM으로 안전하고 수수료 없이 인출 가능.", "verified": 320},
-      {"id": 503, "region": "overseas", "city": "paris", "name": "Euronet ATM (에펠탑 샹드마르스 공원 입구)", "lat": 48.8584, "lng": 2.2945, "feeType": "HIGH", "feeAmount": "4.95 EUR + 13% 마크업", "cards": "절대 이용 주의", "tip": "⚠️ 유럽 관광지 앞 노란색/파란색 Euronet 기기는 약 12,000원 수수료 폭탄 발생!", "verified": 830}
+      {"id": 503, "region": "overseas", "city": "paris", "name": "Euronet ATM (에펠탑 샹드마르스 공원 입구)", "lat": 48.8584, "lng": 2.2945, "feeType": "HIGH", "feeAmount": "4.95 EUR + 13% 마크업", "cards": "절대 이용 주의", "tip": "⚠️ 유럽 관광지 앞 노란색/파란색 Euronet 기기는 약 12,000원 수수료 폭탄 발생!", "verified": 830},
+      {"id": 504, "region": "overseas", "city": "paris", "name": "BNP Paribas ATM (샹젤리제 거리 지점)", "lat": 48.8708, "lng": 2.3048, "feeType": "FREE", "feeAmount": "0 EUR (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "개선문과 샹젤리제 사이 정규 은행 지점 내 무료 ATM.", "verified": 410},
+      {"id": 505, "region": "overseas", "city": "paris", "name": "Crédit Agricole ATM (마레 지구 생폴역)", "lat": 48.8552, "lng": 2.3612, "feeType": "FREE", "feeAmount": "0 EUR (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "마레 지구 쇼핑 중 안전하게 이용할 수 있는 프랑스 정규 은행 ATM.", "verified": 290},
+      {"id": 506, "region": "overseas", "city": "paris", "name": "LCL 은행 ATM (몽마르트 언덕 아베스역)", "lat": 48.8845, "lng": 2.3385, "feeType": "FREE", "feeAmount": "0 EUR (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "몽마르트 사크레쾨르 대성당 아래쪽 정규 은행 기기.", "verified": 265},
+      {"id": 507, "region": "overseas", "city": "paris", "name": "Euronet ATM (노트르담 대성당 생미셸 광장)", "lat": 48.8532, "lng": 2.3442, "feeType": "HIGH", "feeAmount": "4.95 EUR + 13% 마크업", "cards": "절대 이용 주의", "tip": "⚠️ 관광지 거리 사설 Euronet 기기! 50m 옆 BNP Paribas를 이용하세요.", "verified": 690},
+      {"id": 508, "region": "overseas", "city": "paris", "name": "HSBC France ATM (샤를드골 공항 TGV역)", "lat": 49.0045, "lng": 2.5712, "feeType": "FREE", "feeAmount": "0 EUR (완전 무료)", "cards": "트래블로그, 트래블월렛", "tip": "파리 샤를드골 공항 도착 시 사설 Travelex 대신 이용하는 정규 은행 기기.", "verified": 520}
     ];
+    // 따옴표·쉼표를 안전하게 처리하는 CSV 파서
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let field = '';
+      let inQuotes = false;
+      const CR = String.fromCharCode(13);
+      const LF = String.fromCharCode(10);
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        const next = text[i + 1];
+        if (inQuotes) {
+          if (c === '"' && next === '"') { field += '"'; i++; }
+          else if (c === '"') { inQuotes = false; }
+          else { field += c; }
+        } else {
+          if (c === '"') { inQuotes = true; }
+          else if (c === ',') { row.push(field.trim()); field = ''; }
+          else if (c === LF || (c === CR && next === LF)) {
+            if (c === CR) i++;
+            row.push(field.trim());
+            if (row.some(cell => cell !== '')) rows.push(row);
+            row = []; field = '';
+          } else if (c !== CR) {
+            field += c;
+          }
+        }
+      }
+      if (field.length > 0 || row.length > 0) {
+        row.push(field.trim());
+        if (row.some(cell => cell !== '')) rows.push(row);
+      }
+      return rows;
+    }
 
-    let userLocation = { lat: 36.9961, lng: 127.1272, accuracy: 20, name: "GPS 감지 대기 중..." };
-    let isOverseasDemoMode = false;
-    let currentDemoCityKey = null;
-    let selectedRadius = 999999;
-    let currentFilter = "ALL";
-    let atmData = [];
-    let map = null;
-    let markersLayer = null;
-    let userMarker = null;
-    let userRadiusCircle = null;
-    let selectedAtm = null;
-    let isFetchingOsm = false;
+    // 구글 시트에서 최신 수수료 데이터를 실시간으로 읽어와 앱에 반영
+    async function syncFromGoogleSheet() {
+      try {
+        const res = await fetch(GOOGLE_SHEET_CSV_URL + '&_t=' + Date.now());
+        if (!res.ok) return;
+        const csvText = await res.text();
+        const rows = parseCSV(csvText);
+        if (rows.length < 2) return;
+
+        const BOM = String.fromCharCode(65279);
+        const headers = rows[0].map(h => h.startsWith(BOM) ? h.slice(1).trim() : h.trim());
+        const idx = name => headers.indexOf(name);
+        const iId = idx('id'), iCity = idx('city'), iName = idx('name'), iLat = idx('lat'), iLng = idx('lng'),
+              iType = idx('feeType'), iAmt = idx('feeAmount'), iCards = idx('cards'), iTip = idx('tip'), iVer = idx('verified');
+
+        if (iName === -1 || iLat === -1 || iLng === -1) return;
+
+        const sheetItems = [];
+        for (let r = 1; r < rows.length; r++) {
+          const cols = rows[r];
+          const lat = parseFloat(cols[iLat]);
+          const lng = parseFloat(cols[iLng]);
+          if (isNaN(lat) || isNaN(lng) || !cols[iName]) continue;
+          sheetItems.push({
+            id: iId !== -1 && cols[iId] ? Number(cols[iId]) || (Date.now() + r) : (900000 + r),
+            region: 'sheet_live',
+            city: iCity !== -1 ? (cols[iCity] || 'sheet') : 'sheet',
+            name: cols[iName],
+            lat: lat,
+            lng: lng,
+            feeType: iType !== -1 && ['FREE','MODERATE','HIGH'].includes(cols[iType]) ? cols[iType] : 'FREE',
+            feeAmount: iAmt !== -1 ? (cols[iAmt] || '0원') : '0원',
+            cards: iCards !== -1 ? (cols[iCards] || '트래블로그, 트래블월렛') : '트래블로그, 트래블월렛',
+            tip: iTip !== -1 ? (cols[iTip] || '') : '',
+            verified: iVer !== -1 ? (parseInt(cols[iVer], 10) || 0) : 0
+          });
+        }
+
+        if (sheetItems.length > 0) {
+          const extraItems = atmData.filter(a => a.region === 'osm_live' || a.region === 'user' || a.city === 'user_reported' || a.city === 'live_queried');
+          const extendedSeeds = INITIAL_ATMS.filter(a => !sheetItems.some(s => s.id === a.id));
+          atmData = [...sheetItems, ...extendedSeeds, ...extraItems];
+          saveData();
+          renderMarkersAndList();
+          showToast(`📊 구글 시트 최신 수수료 DB(${sheetItems.length}건) 동기화 완료!`);
+        }
+      } catch (e) {
+        // 오프라인/CORS 시 기존 로컬 데이터 유지
+      }
+    }
 
     function initData() {
       try {
-        const cached = localStorage.getItem("feefree_web_atms_overpass_v6");
+        const cached = localStorage.getItem("feefree_web_atms_overpass_v12");
         if (cached) {
           atmData = JSON.parse(cached);
         } else {
           atmData = [...INITIAL_ATMS];
-          localStorage.setItem("feefree_web_atms_overpass_v6", JSON.stringify(atmData));
+          localStorage.setItem("feefree_web_atms_overpass_v12", JSON.stringify(atmData));
         }
       } catch (e) {
         atmData = [...INITIAL_ATMS];
@@ -492,7 +593,27 @@
 
     function saveData() {
       try {
-        localStorage.setItem("feefree_web_atms_overpass_v6", JSON.stringify(atmData));
+        localStorage.setItem("feefree_web_atms_overpass_v12", JSON.stringify(atmData));
+      } catch (e) {}
+    }
+
+    function initData() {
+      try {
+        const cached = localStorage.getItem("feefree_web_atms_overpass_v11");
+        if (cached) {
+          atmData = JSON.parse(cached);
+        } else {
+          atmData = [...INITIAL_ATMS];
+          localStorage.setItem("feefree_web_atms_overpass_v11", JSON.stringify(atmData));
+        }
+      } catch (e) {
+        atmData = [...INITIAL_ATMS];
+      }
+    }
+
+    function saveData() {
+      try {
+        localStorage.setItem("feefree_web_atms_overpass_v11", JSON.stringify(atmData));
       } catch (e) {}
     }
 
@@ -506,11 +627,9 @@
       return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
     }
 
-    // ★ 국가/좌표 및 브랜드별 자동 수수료 판별 함수
     function classifyAtmFee(name, lat, lng) {
       const lower = name.toLowerCase();
 
-      // 1. 공통 사설 고액 기기 (Euronet 등)
       if (lower.includes("euronet") || lower.includes("유로넷") || lower.includes("travelex") || lower.includes("global exchange")) {
         return {
           feeType: "HIGH",
@@ -520,7 +639,6 @@
         };
       }
 
-      // 2. 일본 (위도 30~46, 경도 129~146)
       if (lat >= 30 && lat <= 46 && lng >= 129 && lng <= 146) {
         if (lower.includes("seven") || lower.includes("7-eleven") || lower.includes("セブン") || lower.includes("세븐")) {
           return { feeType: "FREE", feeAmount: "0 JPY (완전 무료)", cards: "트래블로그, 트래블월렛, Visa/Master", tip: "일본 세븐뱅크 공식 제휴! 트래블카드 출금 시 현지 기기 수수료 0엔입니다." };
@@ -534,7 +652,6 @@
         return { feeType: "MODERATE", feeAmount: "110~220 JPY (일반 은행)", cards: "Visa, Master, JCB", tip: "일본 현지 은행 기기입니다. 세븐뱅크/이온뱅크 이용 시 0원 혜택을 받을 수 있습니다." };
       }
 
-      // 3. 베트남 (위도 8~24, 경도 102~110)
       if (lat >= 8 && lat <= 24 && lng >= 102 && lng <= 110) {
         if (lower.includes("vpbank") || lower.includes("vp bank") || lower.includes("tpbank") || lower.includes("tp bank") || lower.includes("tien phong")) {
           return { feeType: "FREE", feeAmount: "0 VND (수수료 면제)", cards: "트래블월렛, 트래블로그", tip: "★베트남 배낭여행 필수 무료 기기! 현지 기기 인출 수수료 0원입니다." };
@@ -542,7 +659,6 @@
         return { feeType: "MODERATE", feeAmount: "30,000~55,000 VND (약 2,500원)", cards: "Visa, Mastercard", tip: "베트남 일반 시중은행 ATM입니다. 무료 인출을 원하시면 근처 VPBank 또는 TPBank를 찾아보세요." };
       }
 
-      // 4. 태국 (위도 5~21, 경도 97~106)
       if (lat >= 5 && lat <= 21 && lng >= 97 && lng <= 106) {
         if (lower.includes("aeon") || lower.includes("อิออน")) {
           return { feeType: "FREE", feeAmount: "0 THB (완전 무료)", cards: "트래블로그(Master), JCB", tip: "태국 시중은행 220바트 수수료를 피할 수 있는 귀한 무료 기기입니다!" };
@@ -550,7 +666,6 @@
         return { feeType: "MODERATE", feeAmount: "220 THB (약 8,500원)", cards: "Visa, Mastercard, GLN", tip: "태국 시중은행 공통 220바트 고정 수수료가 부과됩니다. 'Continue without conversion(DCC 거부)' 필수!" };
       }
 
-      // 5. 대만 (위도 21~26, 경도 119~123)
       if (lat >= 21 && lat <= 26 && lng >= 119 && lng <= 123) {
         if (lower.includes("cathay") || lower.includes("國泰") || lower.includes("국태") || lower.includes("taiwan") || lower.includes("臺灣銀行")) {
           return { feeType: "FREE", feeAmount: "0 TWD (수수료 면제)", cards: "트래블로그, 트래블월렛", tip: "대만 국태세화/대만은행 ATM은 트래블카드 출금 수수료 0원입니다!" };
@@ -558,7 +673,6 @@
         return { feeType: "MODERATE", feeAmount: "0~100 TWD (은행별 상이)", cards: "Visa, Mastercard", tip: "대만 시중은행 ATM입니다. 세븐일레븐 내 국태세화은행 기기는 완전 무료입니다." };
       }
 
-      // 6. 프랑스/유럽 (위도 41~55, 경도 -5~20)
       if (lat >= 41 && lat <= 55 && lng >= -5 && lng <= 20) {
         if (lower.includes("bnp") || lower.includes("société") || lower.includes("societe") || lower.includes("crédit") || lower.includes("credit") || lower.includes("lcl") || lower.includes("poste") || lower.includes("hsbc")) {
           return { feeType: "FREE", feeAmount: "0 EUR (수수료 무료)", cards: "트래블로그, 트래블월렛", tip: "유럽 정규 시중은행 지점 ATM으로 사설 기기 폭리 없이 안전하게 인출 가능합니다." };
@@ -566,7 +680,6 @@
         return { feeType: "FREE", feeAmount: "0 EUR ~ 소액 (은행 기기)", cards: "트래블로그, 트래블월렛", tip: "정규 은행 기기인지 확인하고, 화면에서 반드시 'Without Conversion(현지 통화 결제)'을 선택하세요." };
       }
 
-      // 7. 대한민국 (기본)
       if (lower.includes("cu") || lower.includes("gs25") || lower.includes("seven") || lower.includes("세븐") || lower.includes("nice") || lower.includes("나이스") || lower.includes("효성") || lower.includes("롯데") || lower.includes("emart") || lower.includes("이마트")) {
         return { feeType: "MODERATE", feeAmount: "1,100원 ~ 1,300원", cards: "국내외 모든 카드", tip: "편의점 제휴 ATM으로 타행/야간 출금 시 표준 수수료가 부과될 수 있습니다." };
       }
@@ -588,7 +701,6 @@
         showToast("📍 클릭하신 지점으로 내 기준 위치를 변경했습니다.");
       });
 
-      // 지도 이동/확대 축소 시 화면 전체 모드이면 리스트 자동 갱신
       map.on('moveend', () => {
         if (selectedRadius >= 50000) {
           renderMarkersAndList();
@@ -699,7 +811,6 @@
       );
     }
 
-    // ★ OpenStreetMap Overpass API 실시간 쿼리 (node+way 건물 중심좌표 포함 + 3중 미러)
     async function fetchLiveOsmAtms(isAuto = false) {
       if (isFetchingOsm) return;
       isFetchingOsm = true;
@@ -709,14 +820,17 @@
       if (btnText) btnText.textContent = "OSM 수집 중...";
 
       const bounds = map.getBounds();
-      const south = bounds.getSouth().toFixed(5), west = bounds.getWest().toFixed(5), north = bounds.getNorth().toFixed(5), east = bounds.getEast().toFixed(5);
-      // nwr: node(점) + way(건물 다각형) + relation 모두 조회, out center로 건물 중심좌표 추출
-      const query = `[out:json][timeout:18];(nwr["amenity"="atm"](${south},${west},${north},${east});nwr["amenity"="bank"](${south},${west},${north},${east}););out center 100;`;
+      const south = bounds.getSouth().toFixed(5);
+      const west = bounds.getWest().toFixed(5);
+      const north = bounds.getNorth().toFixed(5);
+      const east = bounds.getEast().toFixed(5);
+
+      const query = `[out:json][timeout:12];(node["amenity"="atm"](${south},${west},${north},${east});node["amenity"="bank"](${south},${west},${north},${east}););out body 180;`;
 
       const endpoints = [
-        `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
-        `https://lz4.overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
-        `https://overpass.kumi.systems/api/interpreter?data=${encodeURIComponent(query)}`
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://lz4.overpass-api.de/api/interpreter"
       ];
 
       let data = null;
@@ -724,8 +838,13 @@
       for (const url of endpoints) {
         try {
           const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 12000);
-          const res = await fetch(url, { signal: controller.signal });
+          const timer = setTimeout(() => controller.abort(), 9000);
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: "data=" + encodeURIComponent(query),
+            signal: controller.signal
+          });
           clearTimeout(timer);
           if (res.ok) {
             data = await res.json();
@@ -756,9 +875,9 @@
 
       let addedCount = 0;
       data.elements.forEach(el => {
-        const lat = el.lat !== undefined ? el.lat : (el.center ? el.center.lat : null);
-        const lon = el.lon !== undefined ? el.lon : (el.center ? el.center.lon : null);
-        if (lat === null || lon === null) return;
+        const lat = el.lat;
+        const lon = el.lon;
+        if (lat === undefined || lon === undefined) return;
 
         const tags = el.tags || {};
         const name = tags.name || tags["name:ko"] || tags["name:en"] || tags.operator || tags.brand || "현지 시중은행 ATM";
@@ -822,7 +941,6 @@
       renderMarkersAndList();
       showToast(`🎓 [수업 시연] ${city.flag} ${city.name} 이동 및 주변 실제 ATM 자동 탐색 중...`);
 
-      // ★ 해외 시연 도시 이동 시 자동으로 OpenStreetMap Overpass API를 호출해 주변 모든 ATM을 채워줌
       setTimeout(() => {
         fetchLiveOsmAtms(true);
       }, 450);
@@ -847,7 +965,6 @@
     function renderMarkersAndList() {
       markersLayer.clearLayers();
 
-      // ★ 수정: 시연 모드여도 city 키로 막지 않고, 현재 위치 반경(또는 지도 화면) 내의 모든 ATM(시드 + OSM 실시간 + 제보)을 통합 표시!
       const bounds = map ? map.getBounds() : null;
       const withDistance = atmData.map(atm => ({
         ...atm,
@@ -858,9 +975,8 @@
         if (selectedRadius < 50000) {
           return atm.distance <= selectedRadius;
         }
-        // '화면 전체' 모드일 때는 현재 지도 뷰포트 안이거나 기준 위치에서 30km 이내인 ATM만 표시 (타 도시 혼입 방지)
         const inViewport = bounds ? bounds.contains([atm.lat, atm.lng]) : false;
-        return inViewport || atm.distance <= 30000;
+        return inViewport || atm.distance <= 80000;
       });
 
       const filtered = inArea.filter(atm => {
@@ -982,6 +1098,7 @@
       initMap();
       renderMarkersAndList();
       requestBrowserGeolocation({ silent: true });
+      syncFromGoogleSheet();
 
       document.getElementById('btnFetchOverpassOsm').addEventListener('click', () => fetchLiveOsmAtms(false));
       document.getElementById('btnGpsLocateTop').addEventListener('click', () => { exitDemoMode(false, false); requestBrowserGeolocation({ silent: false }); });
