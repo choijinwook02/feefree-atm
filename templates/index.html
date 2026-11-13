@@ -699,7 +699,7 @@
       );
     }
 
-    // ★ OpenStreetMap Overpass API 실시간 쿼리 (다중 미러 지원 + 국내/해외 자동 수수료 분류)
+    // ★ OpenStreetMap Overpass API 실시간 쿼리 (node+way 건물 중심좌표 포함 + 3중 미러)
     async function fetchLiveOsmAtms(isAuto = false) {
       if (isFetchingOsm) return;
       isFetchingOsm = true;
@@ -710,26 +710,33 @@
 
       const bounds = map.getBounds();
       const south = bounds.getSouth().toFixed(5), west = bounds.getWest().toFixed(5), north = bounds.getNorth().toFixed(5), east = bounds.getEast().toFixed(5);
-      const query = `[out:json][timeout:15];(node["amenity"="atm"](${south},${west},${north},${east});node["amenity"="bank"](${south},${west},${north},${east}););out body 80;`;
+      // nwr: node(점) + way(건물 다각형) + relation 모두 조회, out center로 건물 중심좌표 추출
+      const query = `[out:json][timeout:18];(nwr["amenity"="atm"](${south},${west},${north},${east});nwr["amenity"="bank"](${south},${west},${north},${east}););out center 100;`;
 
       const endpoints = [
         `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
+        `https://lz4.overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
         `https://overpass.kumi.systems/api/interpreter?data=${encodeURIComponent(query)}`
       ];
 
       let data = null;
+      let fetchError = false;
       for (const url of endpoints) {
         try {
           const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 10000);
+          const timer = setTimeout(() => controller.abort(), 12000);
           const res = await fetch(url, { signal: controller.signal });
           clearTimeout(timer);
           if (res.ok) {
             data = await res.json();
-            if (data && data.elements) break;
+            if (data && Array.isArray(data.elements)) {
+              fetchError = false;
+              break;
+            }
           }
+          fetchError = true;
         } catch (e) {
-          // 다음 미러 시도
+          fetchError = true;
         }
       }
 
@@ -737,14 +744,23 @@
       if (spinner) spinner.classList.add('hidden');
       if (btnText) btnText.textContent = "지도 영역 ATM 전수 불러오기";
 
-      if (!data || !data.elements || data.elements.length === 0) {
-        if (!isAuto) showToast("현재 지도 화면에서 추가 OSM ATM을 찾지 못했습니다.");
+      if (fetchError || !data) {
+        if (!isAuto) showToast("⚠️ OSM 지도 서버가 일시적으로 혼잡합니다. 잠시 후 다시 눌러주세요.");
+        return;
+      }
+
+      if (data.elements.length === 0) {
+        if (!isAuto) showToast("이 화면 범위에는 OSM 등록 ATM이 없습니다. 지도를 축소(-)해 다시 눌러보세요.");
         return;
       }
 
       let addedCount = 0;
       data.elements.forEach(el => {
-        const lat = el.lat, lon = el.lon, tags = el.tags || {};
+        const lat = el.lat !== undefined ? el.lat : (el.center ? el.center.lat : null);
+        const lon = el.lon !== undefined ? el.lon : (el.center ? el.center.lon : null);
+        if (lat === null || lon === null) return;
+
+        const tags = el.tags || {};
         const name = tags.name || tags["name:ko"] || tags["name:en"] || tags.operator || tags.brand || "현지 시중은행 ATM";
         const exists = atmData.some(a => calcDistance(lat, lon, a.lat, a.lng) < 35);
         if (!exists) {
