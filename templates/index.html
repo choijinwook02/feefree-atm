@@ -12,176 +12,162 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; background-color: #0f172a; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
         
-        /* 맵 전체화면 */
-        #map { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
-        
-        /* 고급스러운 플로팅 사이드바 (글래스모피즘) */
-        #floating-sidebar {
-            position: absolute; top: 20px; left: 20px; bottom: 20px; width: 400px;
-            background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px;
-            display: flex; flex-direction: column; z-index: 1000;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            overflow: hidden;
-        }
-
         /* 커스텀 스크롤바 */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         
         /* 마커 스타일 */
         .custom-marker {
             display: flex; justify-content: center; align-items: center;
             border-radius: 50%; color: white; font-weight: 900; border: 2.5px solid white;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 14px;
         }
-        .marker-free { background: linear-gradient(135deg, #22c55e, #16a34a); }
-        .marker-moderate { background: linear-gradient(135deg, #f97316, #ea580c); }
-        .marker-expensive { background: linear-gradient(135deg, #ef4444, #dc2626); }
-        
-        /* 모바일 대응 */
-        @media (max-width: 768px) {
-            #floating-sidebar { top: auto; left: 0; bottom: 0; width: 100%; height: 55vh; border-radius: 20px 20px 0 0; }
-        }
+        .marker-free { background-color: #22c55e; }
+        .marker-moderate { background-color: #f97316; }
+        .marker-expensive { background-color: #ef4444; }
     </style>
 </head>
 <body>
 
-<!-- 전체화면 지도 -->
-<div id="map"></div>
+<div class="flex h-screen w-screen overflow-hidden flex-col md:flex-row">
+    
+    <!-- 오리지널 화이트톤 사이드바 UI 복구 -->
+    <div class="w-full md:w-[420px] bg-white shadow-[5px_0_25px_rgba(0,0,0,0.1)] z-[1000] flex flex-col h-[50vh] md:h-full">
+        <!-- 헤더 -->
+        <div class="p-6 border-b border-gray-100 bg-white">
+            <div class="flex justify-between items-center mb-3">
+                <h1 class="text-2xl font-black text-gray-800 tracking-tight">
+                    <i class="fa-solid fa-earth-asia text-blue-500 mr-2"></i>FeeFree ATM
+                </h1>
+                <button onclick="openCalcModal()" class="bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                    <i class="fa-solid fa-calculator mr-1"></i>절감 계산
+                </button>
+            </div>
+            
+            <!-- 도시 이동 버튼 -->
+            <div class="flex gap-2 overflow-x-auto pb-1 custom-scroll mt-4">
+                <button onclick="moveToCity('tokyo')" class="px-4 py-1.5 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-full text-sm text-gray-700 font-bold whitespace-nowrap transition">🇯🇵 도쿄</button>
+                <button onclick="moveToCity('danang')" class="px-4 py-1.5 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-full text-sm text-gray-700 font-bold whitespace-nowrap transition">🇻🇳 다낭</button>
+                <button onclick="moveToCity('bangkok')" class="px-4 py-1.5 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-full text-sm text-gray-700 font-bold whitespace-nowrap transition">🇹🇭 방콕</button>
+                <button onclick="moveToCity('taipei')" class="px-4 py-1.5 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-full text-sm text-gray-700 font-bold whitespace-nowrap transition">🇹🇼 타이베이</button>
+                <button onclick="moveToCity('paris')" class="px-4 py-1.5 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-full text-sm text-gray-700 font-bold whitespace-nowrap transition">🇫🇷 파리</button>
+            </div>
+        </div>
 
-<!-- 상단 시연 배너 및 내 위치 버튼 (줄바꿈 방지 적용) -->
-<div class="absolute top-6 left-1/2 transform -translate-x-1/2 z-[1000] flex gap-3 pointer-events-auto">
-    <div class="bg-yellow-400 text-black px-5 py-2.5 rounded-full font-extrabold shadow-xl whitespace-nowrap text-sm flex items-center border border-yellow-500">
-        <i class="fa-solid fa-graduation-cap mr-2"></i>수업 시연: 🇯🇵 도쿄
+        <!-- 컨트롤 & 리스트 영역 -->
+        <div class="p-6 flex-grow flex flex-col gap-4 overflow-y-auto custom-scroll bg-gray-50/50">
+            
+            <!-- 반경 및 필터 -->
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                    <span class="text-sm font-bold text-gray-700"><i class="fa-solid fa-compass text-blue-500 mr-2"></i>탐색 반경</span>
+                    <!-- 다크 배경 드롭다운 유지 -->
+                    <select id="radius-select" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-1.5 outline-none focus:border-blue-500">
+                        <option value="99999">화면 전체</option>
+                        <option value="15">15km (시내 전체)</option>
+                        <option value="5">5km</option>
+                        <option value="1">1km</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="setFeeFilter('ALL')" id="btn-filter-ALL" class="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold transition shadow-md">전체보기</button>
+                    <button onclick="setFeeFilter('FREE')" id="btn-filter-FREE" class="flex-1 py-2 bg-white text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-bold transition border border-gray-200 shadow-sm">🟢 무료만</button>
+                    <button onclick="setFeeFilter('TRAVEL')" id="btn-filter-TRAVEL" class="flex-1 py-2 bg-white text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-bold transition border border-gray-200 shadow-sm">💳 제휴카드</button>
+                </div>
+            </div>
+
+            <!-- 핵심 액션 버튼 -->
+            <button onclick="fetchOSMData()" class="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 flex justify-center items-center">
+                <i class="fa-solid fa-satellite-dish mr-2 text-lg"></i>지도 영역 ATM 전수 불러오기
+            </button>
+
+            <button onclick="openReportModal()" class="w-full py-3 bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-bold rounded-xl transition duration-200 flex justify-center items-center shadow-sm">
+                <i class="fa-solid fa-plus-circle mr-2 text-lg"></i>신규 수수료 제보하기
+            </button>
+
+            <!-- 검색 리스트 -->
+            <div class="mt-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-black text-gray-800">검색된 ATM 목록</h2>
+                    <span id="result-count" class="bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full font-bold">0개</span>
+                </div>
+                <div id="list-container" class="flex flex-col gap-3 pb-4">
+                    <!-- 카드 동적 생성 -->
+                </div>
+            </div>
+        </div>
     </div>
-    <button onclick="moveToMyGPS()" class="bg-slate-900 text-white px-5 py-2.5 rounded-full font-extrabold shadow-xl whitespace-nowrap text-sm hover:bg-slate-800 flex items-center border border-slate-700 transition">
-        <i class="fa-solid fa-location-crosshairs text-blue-400 mr-2 text-lg"></i>내 위치로 복귀
-    </button>
-</div>
 
-<!-- 고급 플로팅 사이드바 -->
-<div id="floating-sidebar">
-    <!-- 헤더 -->
-    <div class="p-6 border-b border-white/10">
-        <div class="flex justify-between items-center mb-3">
-            <h1 class="text-2xl font-extrabold text-white tracking-tight drop-shadow-md">
-                <i class="fa-solid fa-earth-asia text-blue-400 mr-2"></i>FeeFree ATM
-            </h1>
-            <button onclick="openCalcModal()" class="bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition">
-                <i class="fa-solid fa-calculator mr-1"></i>절감 계산
+    <!-- 우측 풀스크린 지도 -->
+    <div class="flex-1 relative h-[50vh] md:h-full z-0">
+        <!-- 상단 시연 배너 및 내 위치 버튼 (오리지널 형태 복구) -->
+        <div class="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] flex gap-2 pointer-events-auto">
+            <div class="bg-yellow-400 text-black px-4 py-2.5 rounded-full font-black shadow-lg whitespace-nowrap text-sm flex items-center border border-yellow-500">
+                <i class="fa-solid fa-graduation-cap mr-2"></i>수업 시연: 🇯🇵 도쿄
+            </div>
+            <button onclick="moveToMyGPS()" class="bg-white text-gray-800 px-4 py-2.5 rounded-full font-black shadow-lg whitespace-nowrap text-sm hover:bg-gray-50 flex items-center border border-gray-200 transition">
+                <i class="fa-solid fa-location-crosshairs text-blue-600 mr-2 text-lg"></i>내 위치로 복귀
             </button>
         </div>
-        
-        <!-- 도시 이동 칩 -->
-        <div class="flex gap-2 overflow-x-auto pb-1 custom-scroll mt-4">
-            <button onclick="moveToCity('tokyo')" class="px-4 py-1.5 bg-white/10 hover:bg-blue-600 rounded-full text-sm text-white font-medium whitespace-nowrap transition">🇯🇵 도쿄</button>
-            <button onclick="moveToCity('danang')" class="px-4 py-1.5 bg-white/10 hover:bg-blue-600 rounded-full text-sm text-white font-medium whitespace-nowrap transition">🇻🇳 다낭</button>
-            <button onclick="moveToCity('bangkok')" class="px-4 py-1.5 bg-white/10 hover:bg-blue-600 rounded-full text-sm text-white font-medium whitespace-nowrap transition">🇹🇭 방콕</button>
-            <button onclick="moveToCity('taipei')" class="px-4 py-1.5 bg-white/10 hover:bg-blue-600 rounded-full text-sm text-white font-medium whitespace-nowrap transition">🇹🇼 타이베이</button>
-            <button onclick="moveToCity('paris')" class="px-4 py-1.5 bg-white/10 hover:bg-blue-600 rounded-full text-sm text-white font-medium whitespace-nowrap transition">🇫🇷 파리</button>
-        </div>
-    </div>
-
-    <!-- 컨트롤 & 리스트 영역 -->
-    <div class="p-6 flex-grow flex flex-col gap-4 overflow-y-auto custom-scroll">
-        
-        <!-- 반경 및 필터 -->
-        <div class="flex flex-col gap-3">
-            <div class="flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5">
-                <span class="text-sm font-bold text-slate-300"><i class="fa-solid fa-compass text-blue-400 mr-2"></i>탐색 반경</span>
-                <!-- 요청하신 다크 배경(bg-slate-900) 완벽 적용 -->
-                <select id="radius-select" onchange="applyFilters()" class="bg-slate-900 border border-slate-600 text-white text-sm rounded-lg px-3 py-1.5 outline-none focus:border-blue-500">
-                    <option value="99999">화면 전체</option>
-                    <option value="15">15km (시내 전체)</option>
-                    <option value="5">5km</option>
-                    <option value="1">1km</option>
-                </select>
-            </div>
-
-            <div class="flex gap-2">
-                <button onclick="setFeeFilter('ALL')" id="btn-filter-ALL" class="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold transition shadow-lg">전체보기</button>
-                <button onclick="setFeeFilter('FREE')" id="btn-filter-FREE" class="flex-1 py-2 bg-white/5 text-slate-300 hover:bg-white/10 rounded-lg text-xs font-bold transition border border-white/10">🟢 무료만</button>
-                <button onclick="setFeeFilter('TRAVEL')" id="btn-filter-TRAVEL" class="flex-1 py-2 bg-white/5 text-slate-300 hover:bg-white/10 rounded-lg text-xs font-bold transition border border-white/10">💳 제휴카드</button>
-            </div>
-        </div>
-
-        <!-- 핵심 액션 버튼 -->
-        <button onclick="fetchOSMData()" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(79,70,229,0.4)] transition duration-300 flex justify-center items-center">
-            <i class="fa-solid fa-satellite-dish mr-2 text-lg"></i>지도 영역 ATM 전수 불러오기
-        </button>
-
-        <button onclick="openReportModal()" class="w-full py-3 bg-black/40 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20 font-bold rounded-xl transition duration-300 flex justify-center items-center">
-            <i class="fa-solid fa-plus-circle mr-2 text-lg"></i>신규 수수료 제보하기
-        </button>
-
-        <!-- 검색 리스트 -->
-        <div class="mt-2">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-base font-extrabold text-white">검색된 ATM 목록</h2>
-                <span id="result-count" class="bg-blue-500/20 border border-blue-500/50 text-blue-300 text-xs px-2.5 py-1 rounded-full font-bold">0개</span>
-            </div>
-            <div id="list-container" class="flex flex-col gap-3 pb-4">
-                <!-- 카드 동적 생성 -->
-            </div>
-        </div>
+        <div id="map" class="w-full h-full"></div>
     </div>
 </div>
 
 <!-- ================= 모달 영역 ================= -->
 
-<!-- 1. 제보 모달 (요청하신 위치 선택 기능 완벽 포함) -->
-<div id="report-modal" class="fixed inset-0 bg-black/80 z-[2000] hidden justify-center items-center backdrop-blur-sm">
-    <div class="bg-slate-900 border border-slate-700 w-11/12 max-w-md p-6 rounded-2xl shadow-2xl text-white">
-        <h2 class="text-xl font-extrabold mb-5 flex items-center"><i class="fa-solid fa-bullhorn text-emerald-400 mr-2"></i>신규 수수료 제보</h2>
+<!-- 1. 제보 모달 -->
+<div id="report-modal" class="fixed inset-0 bg-black/60 z-[2000] hidden justify-center items-center backdrop-blur-sm">
+    <div class="bg-white border border-gray-200 w-11/12 max-w-md p-6 rounded-2xl shadow-2xl text-gray-800">
+        <h2 class="text-xl font-black mb-5 flex items-center"><i class="fa-solid fa-bullhorn text-emerald-500 mr-2"></i>신규 수수료 제보</h2>
         
-        <label class="block text-sm font-bold mb-2 text-slate-300">등록 위치 선택</label>
-        <select id="report-location-type" class="w-full p-3 mb-4 bg-black border border-slate-700 rounded-xl outline-none text-sm focus:border-blue-500">
+        <label class="block text-sm font-bold mb-2 text-gray-600">등록 위치 선택</label>
+        <select id="report-location-type" class="w-full p-3 mb-4 bg-gray-50 border border-gray-300 rounded-xl outline-none text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
             <option value="center">현재 보고 있는 지도 중심 위치 🎯</option>
             <option value="gps">내 현재 GPS 위치 📍</option>
         </select>
 
-        <label class="block text-sm font-bold mb-2 text-slate-300">은행 / 기기명</label>
-        <input type="text" id="report-name" placeholder="예: 세븐일레븐 ATM" class="w-full p-3 mb-4 bg-black border border-slate-700 rounded-xl outline-none text-sm focus:border-blue-500">
+        <label class="block text-sm font-bold mb-2 text-gray-600">은행 / 기기명</label>
+        <input type="text" id="report-name" placeholder="예: 세븐일레븐 ATM" class="w-full p-3 mb-4 bg-gray-50 border border-gray-300 rounded-xl outline-none text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
         
-        <label class="block text-sm font-bold mb-2 text-slate-300">수수료 상태</label>
-        <select id="report-fee-type" class="w-full p-3 mb-6 bg-black border border-slate-700 rounded-xl outline-none text-sm focus:border-blue-500">
+        <label class="block text-sm font-bold mb-2 text-gray-600">수수료 상태</label>
+        <select id="report-fee-type" class="w-full p-3 mb-6 bg-gray-50 border border-gray-300 rounded-xl outline-none text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
             <option value="FREE">무료 (트래블카드 등) 🟢</option>
             <option value="MODERATE">소액 수수료 🟠</option>
             <option value="EXPENSIVE">고액 수수료 (주의) 🔴</option>
         </select>
         
         <div class="flex justify-end gap-3">
-            <button onclick="closeReportModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-bold transition border border-slate-600">취소</button>
-            <button onclick="submitReport()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold transition shadow-lg">등록하기</button>
+            <button onclick="closeReportModal()" class="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-sm font-bold transition">취소</button>
+            <button onclick="submitReport()" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold transition shadow-lg">등록하기</button>
         </div>
     </div>
 </div>
 
 <!-- 2. 수수료 절감 계산기 모달 -->
-<div id="calc-modal" class="fixed inset-0 bg-black/80 z-[2000] hidden justify-center items-center backdrop-blur-sm">
-    <div class="bg-slate-900 border border-slate-700 w-11/12 max-w-md p-6 rounded-2xl shadow-2xl text-white">
-        <h2 class="text-xl font-extrabold mb-5 flex items-center"><i class="fa-solid fa-coins text-yellow-400 mr-2"></i>절감액 시뮬레이터</h2>
+<div id="calc-modal" class="fixed inset-0 bg-black/60 z-[2000] hidden justify-center items-center backdrop-blur-sm">
+    <div class="bg-white border border-gray-200 w-11/12 max-w-md p-6 rounded-2xl shadow-2xl text-gray-800">
+        <h2 class="text-xl font-black mb-5 flex items-center"><i class="fa-solid fa-coins text-yellow-500 mr-2"></i>절감액 시뮬레이터</h2>
         <div class="space-y-4 mb-6">
             <div>
-                <label class="block text-sm font-bold mb-1 text-slate-300">방문 국가</label>
-                <select id="calc-country" class="w-full p-3 bg-black border border-slate-700 rounded-xl outline-none text-sm">
+                <label class="block text-sm font-bold mb-1 text-gray-600">방문 국가</label>
+                <select id="calc-country" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-xl outline-none text-sm focus:border-blue-500">
                     <option value="3000">태국 (회당 약 8,500원)</option>
                     <option value="1000">베트남 (회당 약 2,500원)</option>
                     <option value="1500">일본 (회당 약 2,000원)</option>
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-bold mb-1 text-slate-300">여행 중 예상 인출 횟수</label>
-                <input type="number" id="calc-count" value="3" class="w-full p-3 bg-black border border-slate-700 rounded-xl outline-none text-sm">
+                <label class="block text-sm font-bold mb-1 text-gray-600">여행 중 예상 인출 횟수</label>
+                <input type="number" id="calc-count" value="3" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-xl outline-none text-sm focus:border-blue-500">
             </div>
         </div>
-        <button onclick="calculateSavings()" class="w-full py-3.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-bold transition shadow-lg mb-4">절감액 확인하기</button>
-        <div id="calc-result" class="text-center font-bold text-lg text-yellow-400 hidden bg-black p-4 rounded-xl border border-yellow-500/30"></div>
+        <button onclick="calculateSavings()" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-lg mb-4">절감액 확인하기</button>
+        <div id="calc-result" class="text-center font-bold text-lg text-blue-600 hidden bg-blue-50 p-4 rounded-xl border border-blue-100"></div>
         <div class="flex justify-end mt-4">
-            <button onclick="closeCalcModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-bold transition border border-slate-600">닫기</button>
+            <button onclick="closeCalcModal()" class="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-sm font-bold transition">닫기</button>
         </div>
     </div>
 </div>
@@ -217,7 +203,7 @@
     let allATMs = [];
     let currentFeeFilter = 'ALL';
 
-    // --- 2. 100% 안전한 CSV 파서 (화면 깨짐 원천 방지) ---
+    // --- 2. 100% 안전한 CSV 파서 ---
     function parseCSV(text) {
         const rows = [];
         let row = [];
@@ -274,7 +260,7 @@
             allATMs = [...INITIAL_ATMS];
         }
         
-        const cached = localStorage.getItem("feefree_data_premium_v1");
+        const cached = localStorage.getItem("feefree_data_original_v1");
         if (cached) {
             JSON.parse(cached).forEach(ld => { if (!allATMs.find(a => a.id === ld.id)) allATMs.push(ld); });
         }
@@ -283,14 +269,14 @@
 
     function saveData() {
         const addedData = allATMs.filter(a => !INITIAL_ATMS.find(init => init.id === a.id));
-        localStorage.setItem("feefree_data_premium_v1", JSON.stringify(addedData));
+        localStorage.setItem("feefree_data_original_v1", JSON.stringify(addedData));
     }
 
-    // --- 3. 지도 초기화 ---
+    // ★ API 키 없는 완전 무료 OpenStreetMap 복구 완료 ★
     const map = L.map('map', { zoomControl: false }).setView([CITIES.tokyo.lat, CITIES.tokyo.lng], CITIES.tokyo.zoom);
     L.control.zoom({ position: 'topright' }).addTo(map);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap & CARTO'
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap | FeeFree ATM'
     }).addTo(map);
 
     let markersLayer = L.layerGroup().addTo(map);
@@ -334,7 +320,6 @@
         const bounds = map.getBounds();
         const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
         
-        // 일본 편의점(atm=yes) 및 전세계 은행(amenity=atm) 500개 수집
         const query = `
             [out:json][timeout:25];
             (
@@ -385,11 +370,11 @@
         }
     }
 
-    // --- 6. 필터 및 프리미엄 렌더링 ---
+    // --- 6. 필터 및 오리지널 카드 렌더링 ---
     function setFeeFilter(type) {
         currentFeeFilter = type;
-        const activeClass = "flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold transition shadow-lg";
-        const inactiveClass = "flex-1 py-2 bg-white/5 text-slate-300 hover:bg-white/10 rounded-lg text-xs font-bold transition border border-white/10";
+        const activeClass = "flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold transition shadow-md";
+        const inactiveClass = "flex-1 py-2 bg-white text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-bold transition border border-gray-200 shadow-sm";
         
         document.getElementById('btn-filter-ALL').className = type === 'ALL' ? activeClass : inactiveClass;
         document.getElementById('btn-filter-FREE').className = type === 'FREE' ? activeClass : inactiveClass;
@@ -402,7 +387,7 @@
     function getIconHTML(type) {
         let colorClass = type === 'FREE' ? 'marker-free' : type === 'EXPENSIVE' ? 'marker-expensive' : 'marker-moderate';
         let symbol = type === 'FREE' ? '₩' : type === 'EXPENSIVE' ? '!' : '$';
-        return `<div class="custom-marker ${colorClass}" style="width: 34px; height: 34px;">${symbol}</div>`;
+        return `<div class="custom-marker ${colorClass}" style="width: 32px; height: 32px;">${symbol}</div>`;
     }
 
     function verifyATM(id) {
@@ -435,36 +420,36 @@
 
             visibleCount++;
             
-            const icon = L.divIcon({ html: getIconHTML(atm.feeType), className: '', iconSize: [34, 34] });
+            const icon = L.divIcon({ html: getIconHTML(atm.feeType), className: '', iconSize: [32, 32] });
             const marker = L.marker([atm.lat, atm.lng], { icon }).addTo(markersLayer);
             
-            let badgeHtml = atm.feeType === 'FREE' ? '<span class="bg-green-100 text-green-800 text-[10px] font-extrabold px-2 py-0.5 rounded ml-1">무료</span>' : '';
+            let badgeHtml = atm.feeType === 'FREE' ? '<span class="bg-green-100 text-green-700 text-[10px] font-black px-2 py-0.5 rounded ml-1">무료</span>' : '';
             marker.bindPopup(`
                 <div class="text-center font-sans p-1">
-                    <div class="font-extrabold text-[15px] mb-1">${atm.name} ${badgeHtml}</div>
-                    <div class="text-sm font-bold text-slate-700 mb-2">수수료: ${atm.feeAmount}</div>
-                    <div class="text-xs bg-slate-100 p-2 rounded text-slate-600 font-medium">${atm.tip}</div>
+                    <div class="font-black text-[15px] text-gray-800 mb-1">${atm.name} ${badgeHtml}</div>
+                    <div class="text-sm font-bold text-gray-600 mb-2">수수료: ${atm.feeAmount}</div>
+                    <div class="text-xs bg-gray-100 p-2 rounded text-gray-600 font-medium">${atm.tip}</div>
                 </div>
             `);
 
-            // 프리미엄 다크 카드 UI
-            let typeColor = atm.feeType === 'FREE' ? 'text-green-400' : atm.feeType === 'EXPENSIVE' ? 'text-red-400' : 'text-orange-400';
+            // 오리지널 화이트 카드 UI
+            let typeColor = atm.feeType === 'FREE' ? 'text-green-600' : atm.feeType === 'EXPENSIVE' ? 'text-red-500' : 'text-orange-500';
             const card = document.createElement('div');
-            card.className = "bg-black/40 p-4 rounded-2xl border border-white/5 hover:bg-black/60 hover:border-blue-500/50 cursor-pointer transition-all shadow-lg group";
+            card.className = "bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-400 cursor-pointer transition-all shadow-sm hover:shadow-md group";
             card.innerHTML = `
                 <div class="flex justify-between items-start mb-2" onclick="map.flyTo([${atm.lat}, ${atm.lng}], 16); setTimeout(()=> marker.openPopup(), 300);">
-                    <span class="font-extrabold text-white text-[15px] group-hover:text-blue-400 transition">${atm.name}</span>
-                    <span class="text-[11px] text-blue-300 bg-blue-900/30 px-2 py-1 rounded-md font-mono border border-blue-500/20">${atm.distance.toFixed(1)}km</span>
+                    <span class="font-black text-gray-800 text-[15px] group-hover:text-blue-600 transition">${atm.name}</span>
+                    <span class="text-[11px] text-gray-500 bg-gray-100 px-2 py-1 rounded-md font-mono border border-gray-200">${atm.distance.toFixed(1)}km</span>
                 </div>
                 <div class="flex items-center gap-2 mb-2" onclick="map.flyTo([${atm.lat}, ${atm.lng}], 16);">
-                    <div class="text-[13px] ${typeColor} font-extrabold bg-white/5 px-2 py-0.5 rounded">${atm.feeAmount}</div>
-                    ${atm.feeType === 'FREE' ? '<i class="fa-solid fa-check-circle text-green-400 text-sm"></i>' : ''}
+                    <div class="text-[13px] ${typeColor} font-black bg-gray-50 px-2 py-0.5 rounded border border-gray-100">${atm.feeAmount}</div>
+                    ${atm.feeType === 'FREE' ? '<i class="fa-solid fa-check-circle text-green-500 text-sm"></i>' : ''}
                 </div>
-                <div class="text-[12px] text-slate-400 mb-4 pl-1 border-l-2 border-slate-700">${atm.tip}</div>
+                <div class="text-[12px] text-gray-500 mb-4 pl-2 border-l-2 border-gray-300">${atm.tip}</div>
                 
-                <div class="flex justify-between items-center pt-3 border-t border-white/5">
-                    <span class="text-[11px] text-slate-500 font-bold"><i class="fa-solid fa-user-check mr-1"></i>${atm.verified || 0}명 검증</span>
-                    <button onclick="event.stopPropagation(); verifyATM('${atm.id}')" class="text-[11px] bg-white/10 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg transition font-bold border border-white/10 hover:border-transparent">
+                <div class="flex justify-between items-center pt-3 border-t border-gray-100">
+                    <span class="text-[11px] text-gray-400 font-bold"><i class="fa-solid fa-user-check mr-1"></i>${atm.verified || 0}명 검증</span>
+                    <button onclick="event.stopPropagation(); verifyATM('${atm.id}')" class="text-[11px] bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 px-3 py-1.5 rounded-lg transition font-bold border border-gray-200">
                         <i class="fa-solid fa-thumbs-up mr-1"></i>정보 맞음
                     </button>
                 </div>
@@ -504,7 +489,7 @@
         const count = parseInt(document.getElementById('calc-count').value) || 0;
         const total = (fee * count).toLocaleString();
         const resultDiv = document.getElementById('calc-result');
-        resultDiv.innerHTML = `🎉 FeeFree 사용 시<br>총 <span class="text-white text-2xl">${total}원</span> 절약 예상!`;
+        resultDiv.innerHTML = `🎉 FeeFree 사용 시<br>총 <span class="text-blue-600 text-2xl">${total}원</span> 절약 예상!`;
         resultDiv.style.display = 'block';
     }
 
