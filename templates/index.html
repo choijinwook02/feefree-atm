@@ -12,490 +12,527 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
         
-        /* 커스텀 스크롤바 */
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        /* 캡처 이미지와 동일한 커스텀 스크롤바 */
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #1f2937; }
         
         /* 마커 스타일 */
         .custom-marker {
             display: flex; justify-content: center; align-items: center;
-            border-radius: 50%; color: white; font-weight: 900; border: 2.5px solid white;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 14px;
+            border-radius: 50%; color: white; font-weight: 900; border: 2px solid white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4); font-size: 13px;
         }
         .marker-free { background-color: #22c55e; }
         .marker-moderate { background-color: #f97316; }
         .marker-expensive { background-color: #ef4444; }
     </style>
 </head>
-<body>
+<body class="flex flex-col h-screen w-screen bg-[#0f172a]">
 
-<div class="flex h-screen w-screen overflow-hidden flex-col md:flex-row">
-    
-    <!-- 오리지널 화이트톤 사이드바 UI 복구 -->
-    <div class="w-full md:w-[420px] bg-white shadow-[5px_0_25px_rgba(0,0,0,0.1)] z-[1000] flex flex-col h-[50vh] md:h-full">
-        <!-- 헤더 -->
-        <div class="p-6 border-b border-gray-100 bg-white">
-            <div class="flex justify-between items-center mb-3">
-                <h1 class="text-2xl font-black text-gray-800 tracking-tight">
-                    <i class="fa-solid fa-earth-asia text-blue-500 mr-2"></i>FeeFree ATM
+    <!-- ================= 상단바 1열 (캡처 이미지 동일 복구) ================= -->
+    <header class="w-full bg-[#0f172a] text-white border-b border-gray-700 flex-shrink-0 z-[2000]">
+        <div class="flex justify-between items-center px-4 py-2">
+            <!-- 로고 영역 -->
+            <div class="flex items-center gap-3">
+                <div class="bg-gray-800 p-1.5 rounded-lg border border-gray-600">
+                    <i class="fa-solid fa-w text-gray-300"></i>
+                </div>
+                <h1 class="text-lg font-bold tracking-tight">
+                    FeeFree ATM <span class="text-xs text-blue-400 font-normal ml-2 tracking-normal">100% 수수료 무료 ATM 지도</span>
                 </h1>
-                <button onclick="openCalcModal()" class="bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition">
-                    <i class="fa-solid fa-calculator mr-1"></i>절감 계산
+            </div>
+            
+            <!-- 우측 액션 버튼들 -->
+            <div class="flex gap-2">
+                <button onclick="moveToMyGPS()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs font-bold transition flex items-center">
+                    <i class="fa-solid fa-location-crosshairs mr-1.5"></i>내 GPS 위치 복귀
+                </button>
+                <button onclick="openCalcModal()" class="px-3 py-1.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded text-xs font-bold transition flex items-center">
+                    <i class="fa-solid fa-calculator mr-1.5 text-yellow-400"></i>수수료 절감 계산기
+                </button>
+                <button onclick="openReportModal()" class="px-3 py-1.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded text-xs font-bold transition flex items-center">
+                    <i class="fa-solid fa-plus mr-1.5 text-emerald-400"></i>+ 수수료 제보
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= 상단바 2열 (컨트롤 영역) ================= -->
+    <div class="w-full bg-[#1e293b] text-gray-300 border-b border-gray-700 flex-shrink-0 z-[2000] flex justify-between items-center px-4 py-2">
+        <!-- 좌측: 도시 이동 -->
+        <div class="flex items-center gap-2 overflow-x-auto custom-scroll">
+            <button class="px-3 py-1 bg-gray-700 text-white rounded text-xs font-bold whitespace-nowrap flex items-center border border-gray-600">
+                <i class="fa-solid fa-location-dot mr-1 text-blue-400"></i>내 현재 위치 (GPS)
+            </button>
+            <span class="text-gray-500 text-xs mx-1">|</span>
+            <span class="text-xs font-bold text-yellow-500 flex items-center mr-1">
+                <i class="fa-solid fa-graduation-cap mr-1"></i>수업 시연 모드:
+            </span>
+            <button onclick="moveToCity('tokyo')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">도쿄</button>
+            <button onclick="moveToCity('danang')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">다낭</button>
+            <button onclick="moveToCity('bangkok')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">방콕</button>
+            <button onclick="moveToCity('taipei')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">타이베이</button>
+            <button onclick="moveToCity('paris')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">파리</button>
+        </div>
+
+        <!-- 우측: 필터링 -->
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-compass text-gray-400 text-sm"></i>
+                <select id="radius-select" onchange="applyFilters()" class="bg-[#0f172a] border border-gray-600 text-xs rounded px-2 py-1 outline-none text-white">
+                    <option value="99999">반경: 화면 전체 (기본)</option>
+                    <option value="15">반경: 15km 이내</option>
+                    <option value="5">반경: 5km 이내</option>
+                    <option value="1">반경: 1km 이내</option>
+                </select>
+            </div>
+            <div class="flex bg-[#0f172a] rounded border border-gray-700 overflow-hidden">
+                <button id="btn-filter-ALL" onclick="setFeeFilter('ALL')" class="px-3 py-1 bg-gray-600 text-white text-xs font-bold transition">전체보기 (7)</button>
+                <button id="btn-filter-FREE" onclick="setFeeFilter('FREE')" class="px-3 py-1 hover:bg-gray-700 text-xs transition flex items-center border-l border-gray-700"><span class="w-2 h-2 rounded-full bg-green-500 mr-1.5"></span>무료만 (4)</button>
+                <button id="btn-filter-TRAVEL" onclick="setFeeFilter('TRAVEL')" class="px-3 py-1 hover:bg-gray-700 text-xs transition flex items-center border-l border-gray-700"><i class="fa-solid fa-credit-card mr-1.5 text-blue-400"></i>트래블카드 제휴</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 메인 지도 및 플로팅 패널 ================= -->
+    <div class="flex-1 relative w-full h-full z-0 bg-gray-200">
+        
+        <!-- 지도 컨테이너 -->
+        <div id="map" class="w-full h-full"></div>
+
+        <!-- 1. 좌측 상단 플로팅 패널 (OSM 실시간 수집) -->
+        <div class="absolute top-4 left-4 z-[1000] w-72 bg-[#1e293b] border border-gray-700 rounded-lg shadow-xl text-white flex flex-col pointer-events-auto">
+            <div class="p-3 border-b border-gray-700 bg-gray-800 rounded-t-lg flex justify-between items-center">
+                <h2 class="text-xs font-bold flex items-center">
+                    <i class="fa-solid fa-satellite-dish text-blue-400 mr-2"></i>실시간 OSM 자동 수집
+                </h2>
+                <span class="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-300">경고: 데이터 통신 발생</span>
+            </div>
+            <div class="p-4 flex flex-col gap-3">
+                <p class="text-[11px] text-gray-400 leading-relaxed">
+                    실시간 맵 데이터를 분석하여 최대 반경 15km 이내의 감춰진 ATM 위치를 자동 추출합니다.<br>
+                    (데이터 통신 지연이 발생할 수 있습니다)
+                </p>
+                <!-- 일본 편의점 ATM 연동 완벽 적용된 수집 버튼 -->
+                <button onclick="fetchOSMData()" class="w-full py-2.5 bg-gray-700 hover:bg-blue-600 border border-gray-600 rounded text-xs font-bold transition flex justify-center items-center">
+                    <i class="fa-solid fa-crosshairs mr-2"></i>현재 화면 기준 ATM 전수 수집
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. 좌측 하단 플로팅 패널 (범례) -->
+        <div class="absolute bottom-6 left-4 z-[1000] bg-[#1e293b] border border-gray-700 rounded-lg shadow-xl p-3 text-white pointer-events-auto flex flex-col gap-2">
+            <div class="text-[10px] flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500 border border-white"></span>내 현재 위치 (GPS)</div>
+            <div class="text-[10px] flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500 border border-white flex justify-center items-center text-[8px] font-bold">₩</span>무료 ATM</div>
+            <div class="text-[10px] flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500 border border-white flex justify-center items-center text-[8px] font-bold">$</span>소액 부과 ATM</div>
+            <div class="text-[10px] flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500 border border-white flex justify-center items-center text-[8px] font-bold">!</span>고액 주의 (220바트 등)</div>
+        </div>
+
+        <!-- 3. 우측 플로팅 패널 (ATM 리스트) -->
+        <div class="absolute top-4 right-4 z-[1000] w-[340px] max-h-[calc(100vh-140px)] bg-[#1e293b] border border-gray-700 rounded-lg shadow-2xl flex flex-col pointer-events-auto overflow-hidden">
+            <div class="p-3 border-b border-gray-700 bg-gray-800 flex justify-between items-center">
+                <h2 class="text-xs font-bold text-white flex items-center">
+                    <i class="fa-solid fa-list text-blue-400 mr-2"></i>내 주변 가까운 ATM 목록
+                </h2>
+                <button onclick="applyFilters()" class="text-[10px] bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-gray-300 border border-gray-600 transition flex items-center">
+                    <i class="fa-solid fa-rotate-right mr-1"></i>새로고침
                 </button>
             </div>
             
-            <!-- 도시 이동 버튼 -->
-            <div class="flex gap-2 overflow-x-auto pb-1 custom-scroll mt-4">
-                <button onclick="moveToCity('tokyo')" class="px-4 py-1.5 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-full text-sm text-gray-700 font-bold whitespace-nowrap transition">🇯🇵 도쿄</button>
-                <button onclick="moveToCity('danang')" class="px-4 py-1.5 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-full text-sm text-gray-700 font-bold whitespace-nowrap transition">🇻🇳 다낭</button>
-                <button onclick="moveToCity('bangkok')" class="px-4 py-1.5 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-full text-sm text-gray-700 font-bold whitespace-nowrap transition">🇹🇭 방콕</button>
-                <button onclick="moveToCity('taipei')" class="px-4 py-1.5 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-full text-sm text-gray-700 font-bold whitespace-nowrap transition">🇹🇼 타이베이</button>
-                <button onclick="moveToCity('paris')" class="px-4 py-1.5 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-full text-sm text-gray-700 font-bold whitespace-nowrap transition">🇫🇷 파리</button>
+            <div id="list-container" class="flex-1 overflow-y-auto p-2 flex flex-col gap-2 custom-scroll bg-[#0f172a]">
+                <!-- 카드 동적 생성 영역 -->
             </div>
         </div>
+    </div>
 
-        <!-- 컨트롤 & 리스트 영역 -->
-        <div class="p-6 flex-grow flex flex-col gap-4 overflow-y-auto custom-scroll bg-gray-50/50">
-            
-            <!-- 반경 및 필터 -->
-            <div class="flex flex-col gap-3">
-                <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                    <span class="text-sm font-bold text-gray-700"><i class="fa-solid fa-compass text-blue-500 mr-2"></i>탐색 반경</span>
-                    <!-- 다크 배경 드롭다운 유지 -->
-                    <select id="radius-select" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-1.5 outline-none focus:border-blue-500">
-                        <option value="99999">화면 전체</option>
-                        <option value="15">15km (시내 전체)</option>
-                        <option value="5">5km</option>
-                        <option value="1">1km</option>
+    <!-- ================= 모달 영역 ================= -->
+
+    <!-- 제보 모달 -->
+    <div id="report-modal" class="fixed inset-0 bg-black/70 z-[3000] hidden justify-center items-center backdrop-blur-sm">
+        <div class="bg-[#1e293b] border border-gray-600 w-11/12 max-w-sm p-5 rounded-lg shadow-2xl text-white">
+            <h2 class="text-lg font-bold mb-4 flex items-center"><i class="fa-solid fa-bullhorn text-emerald-400 mr-2"></i>수수료 제보</h2>
+            <label class="block text-xs font-bold mb-1 text-gray-300">등록 위치</label>
+            <select id="report-location-type" class="w-full p-2.5 mb-3 bg-[#0f172a] border border-gray-600 rounded outline-none text-xs">
+                <option value="center">현재 보고 있는 지도 중심</option>
+                <option value="gps">내 현재 GPS 위치</option>
+            </select>
+            <label class="block text-xs font-bold mb-1 text-gray-300">기기명</label>
+            <input type="text" id="report-name" placeholder="예: 세븐일레븐 ATM" class="w-full p-2.5 mb-3 bg-[#0f172a] border border-gray-600 rounded outline-none text-xs">
+            <label class="block text-xs font-bold mb-1 text-gray-300">수수료 상태</label>
+            <select id="report-fee-type" class="w-full p-2.5 mb-5 bg-[#0f172a] border border-gray-600 rounded outline-none text-xs">
+                <option value="FREE">무료 (트래블카드 등)</option>
+                <option value="MODERATE">소액 수수료</option>
+                <option value="EXPENSIVE">고액 수수료</option>
+            </select>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeReportModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold transition">취소</button>
+                <button onclick="submitReport()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded text-xs font-bold transition">등록</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 계산기 모달 -->
+    <div id="calc-modal" class="fixed inset-0 bg-black/70 z-[3000] hidden justify-center items-center backdrop-blur-sm">
+        <div class="bg-[#1e293b] border border-gray-600 w-11/12 max-w-sm p-5 rounded-lg shadow-2xl text-white">
+            <h2 class="text-lg font-bold mb-4 flex items-center"><i class="fa-solid fa-coins text-yellow-400 mr-2"></i>절감액 시뮬레이터</h2>
+            <div class="space-y-3 mb-5">
+                <div>
+                    <label class="block text-xs font-bold mb-1 text-gray-300">방문 국가</label>
+                    <select id="calc-country" class="w-full p-2.5 bg-[#0f172a] border border-gray-600 rounded outline-none text-xs">
+                        <option value="3000">태국 (회당 약 8,500원)</option>
+                        <option value="1000">베트남 (회당 약 2,500원)</option>
+                        <option value="1500">일본 (회당 약 2,000원)</option>
                     </select>
                 </div>
-
-                <div class="flex gap-2">
-                    <button onclick="setFeeFilter('ALL')" id="btn-filter-ALL" class="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold transition shadow-md">전체보기</button>
-                    <button onclick="setFeeFilter('FREE')" id="btn-filter-FREE" class="flex-1 py-2 bg-white text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-bold transition border border-gray-200 shadow-sm">🟢 무료만</button>
-                    <button onclick="setFeeFilter('TRAVEL')" id="btn-filter-TRAVEL" class="flex-1 py-2 bg-white text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-bold transition border border-gray-200 shadow-sm">💳 제휴카드</button>
+                <div>
+                    <label class="block text-xs font-bold mb-1 text-gray-300">예상 인출 횟수</label>
+                    <input type="number" id="calc-count" value="3" class="w-full p-2.5 bg-[#0f172a] border border-gray-600 rounded outline-none text-xs">
                 </div>
             </div>
-
-            <!-- 핵심 액션 버튼 -->
-            <button onclick="fetchOSMData()" class="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 flex justify-center items-center">
-                <i class="fa-solid fa-satellite-dish mr-2 text-lg"></i>지도 영역 ATM 전수 불러오기
-            </button>
-
-            <button onclick="openReportModal()" class="w-full py-3 bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-bold rounded-xl transition duration-200 flex justify-center items-center shadow-sm">
-                <i class="fa-solid fa-plus-circle mr-2 text-lg"></i>신규 수수료 제보하기
-            </button>
-
-            <!-- 검색 리스트 -->
-            <div class="mt-4">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-base font-black text-gray-800">검색된 ATM 목록</h2>
-                    <span id="result-count" class="bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full font-bold">0개</span>
-                </div>
-                <div id="list-container" class="flex flex-col gap-3 pb-4">
-                    <!-- 카드 동적 생성 -->
-                </div>
+            <button onclick="calculateSavings()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 rounded text-xs font-bold transition mb-3">계산하기</button>
+            <div id="calc-result" class="text-center font-bold text-sm text-yellow-400 hidden bg-[#0f172a] p-3 rounded border border-gray-700"></div>
+            <div class="flex justify-end mt-3">
+                <button onclick="closeCalcModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold transition">닫기</button>
             </div>
         </div>
     </div>
 
-    <!-- 우측 풀스크린 지도 -->
-    <div class="flex-1 relative h-[50vh] md:h-full z-0">
-        <!-- 상단 시연 배너 및 내 위치 버튼 (오리지널 형태 복구) -->
-        <div class="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] flex gap-2 pointer-events-auto">
-            <div class="bg-yellow-400 text-black px-4 py-2.5 rounded-full font-black shadow-lg whitespace-nowrap text-sm flex items-center border border-yellow-500">
-                <i class="fa-solid fa-graduation-cap mr-2"></i>수업 시연: 🇯🇵 도쿄
-            </div>
-            <button onclick="moveToMyGPS()" class="bg-white text-gray-800 px-4 py-2.5 rounded-full font-black shadow-lg whitespace-nowrap text-sm hover:bg-gray-50 flex items-center border border-gray-200 transition">
-                <i class="fa-solid fa-location-crosshairs text-blue-600 mr-2 text-lg"></i>내 위치로 복귀
-            </button>
-        </div>
-        <div id="map" class="w-full h-full"></div>
-    </div>
-</div>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // --- 1. 기본 데이터 및 시트 연동 ---
+        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQsLuqGsy2j3XcFluCAfWReKYNMOmEKoWuZ3hhuCM6jCSwO04Ogh-Ss2Dc4Xtq5_K7soQ42GYi3hE_/pub?gid=642340203&single=true&output=csv";
 
-<!-- ================= 모달 영역 ================= -->
+        const CITIES = {
+            tokyo: { lat: 35.6895, lng: 139.6917, zoom: 14 },
+            danang: { lat: 16.0544, lng: 108.2022, zoom: 14 },
+            bangkok: { lat: 13.7563, lng: 100.5018, zoom: 14 },
+            taipei: { lat: 25.0450, lng: 121.5154, zoom: 14 },
+            paris: { lat: 48.8655, lng: 2.3125, zoom: 14 },
+            seoul: { lat: 37.5665, lng: 126.9780, zoom: 14 },
+            pyeongtaek: { lat: 36.9921, lng: 127.1128, zoom: 14 }
+        };
 
-<!-- 1. 제보 모달 -->
-<div id="report-modal" class="fixed inset-0 bg-black/60 z-[2000] hidden justify-center items-center backdrop-blur-sm">
-    <div class="bg-white border border-gray-200 w-11/12 max-w-md p-6 rounded-2xl shadow-2xl text-gray-800">
-        <h2 class="text-xl font-black mb-5 flex items-center"><i class="fa-solid fa-bullhorn text-emerald-500 mr-2"></i>신규 수수료 제보</h2>
-        
-        <label class="block text-sm font-bold mb-2 text-gray-600">등록 위치 선택</label>
-        <select id="report-location-type" class="w-full p-3 mb-4 bg-gray-50 border border-gray-300 rounded-xl outline-none text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-            <option value="center">현재 보고 있는 지도 중심 위치 🎯</option>
-            <option value="gps">내 현재 GPS 위치 📍</option>
-        </select>
+        const INITIAL_ATMS = [
+            { id: '1', lat: 35.6895, lng: 139.6917, name: "세븐일레븐 세븐뱅크 ATM (신주쿠)", feeType: "FREE", feeAmount: "무료", tip: "트래블로그 무료", verified: 152 },
+            { id: '2', lat: 35.6985, lng: 139.7717, name: "이온뱅크 ATM (아키하바라)", feeType: "FREE", feeAmount: "무료", tip: "트래블월렛 무료", verified: 98 },
+            { id: '3', lat: 35.6580, lng: 139.7016, name: "로손 ATM (시부야)", feeType: "MODERATE", feeAmount: "110~220엔", tip: "소액 부과", verified: 45 },
+            { id: '4', lat: 16.0544, lng: 108.2022, name: "VP Bank ATM (다낭 시내)", feeType: "FREE", feeAmount: "무료", tip: "트래블월렛 무료 인출", verified: 310 },
+            { id: '5', lat: 16.0620, lng: 108.2210, name: "TP Bank ATM", feeType: "FREE", feeAmount: "무료", tip: "트래블월렛 지원", verified: 215 },
+            { id: '6', lat: 13.7563, lng: 100.5018, name: "Krungsri Bank ATM (카오산로드)", feeType: "EXPENSIVE", feeAmount: "220바트", tip: "태국은 대부분 220바트 부과", verified: 420 },
+            { id: '7', lat: 25.0450, lng: 121.5154, name: "타이완은행 ATM (타이베이 메인역)", feeType: "FREE", feeAmount: "무료", tip: "대만은 대부분 은행 ATM 무료", verified: 180 },
+            { id: '8', lat: 48.8655, lng: 2.3125, name: "Credit Agricole ATM (샹젤리제)", feeType: "FREE", feeAmount: "무료", tip: "트래블페이 이용시 면제", verified: 75 },
+            { id: '9', lat: 36.9958, lng: 127.1338, name: "하나은행 ATM (평택대학교 학생회관)", feeType: "FREE", feeAmount: "무료", tip: "재학생 수수료 면제", verified: 480 }
+        ];
 
-        <label class="block text-sm font-bold mb-2 text-gray-600">은행 / 기기명</label>
-        <input type="text" id="report-name" placeholder="예: 세븐일레븐 ATM" class="w-full p-3 mb-4 bg-gray-50 border border-gray-300 rounded-xl outline-none text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-        
-        <label class="block text-sm font-bold mb-2 text-gray-600">수수료 상태</label>
-        <select id="report-fee-type" class="w-full p-3 mb-6 bg-gray-50 border border-gray-300 rounded-xl outline-none text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-            <option value="FREE">무료 (트래블카드 등) 🟢</option>
-            <option value="MODERATE">소액 수수료 🟠</option>
-            <option value="EXPENSIVE">고액 수수료 (주의) 🔴</option>
-        </select>
-        
-        <div class="flex justify-end gap-3">
-            <button onclick="closeReportModal()" class="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-sm font-bold transition">취소</button>
-            <button onclick="submitReport()" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold transition shadow-lg">등록하기</button>
-        </div>
-    </div>
-</div>
+        let allATMs = [];
+        let currentFeeFilter = 'ALL';
 
-<!-- 2. 수수료 절감 계산기 모달 -->
-<div id="calc-modal" class="fixed inset-0 bg-black/60 z-[2000] hidden justify-center items-center backdrop-blur-sm">
-    <div class="bg-white border border-gray-200 w-11/12 max-w-md p-6 rounded-2xl shadow-2xl text-gray-800">
-        <h2 class="text-xl font-black mb-5 flex items-center"><i class="fa-solid fa-coins text-yellow-500 mr-2"></i>절감액 시뮬레이터</h2>
-        <div class="space-y-4 mb-6">
-            <div>
-                <label class="block text-sm font-bold mb-1 text-gray-600">방문 국가</label>
-                <select id="calc-country" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-xl outline-none text-sm focus:border-blue-500">
-                    <option value="3000">태국 (회당 약 8,500원)</option>
-                    <option value="1000">베트남 (회당 약 2,500원)</option>
-                    <option value="1500">일본 (회당 약 2,000원)</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-bold mb-1 text-gray-600">여행 중 예상 인출 횟수</label>
-                <input type="number" id="calc-count" value="3" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-xl outline-none text-sm focus:border-blue-500">
-            </div>
-        </div>
-        <button onclick="calculateSavings()" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-lg mb-4">절감액 확인하기</button>
-        <div id="calc-result" class="text-center font-bold text-lg text-blue-600 hidden bg-blue-50 p-4 rounded-xl border border-blue-100"></div>
-        <div class="flex justify-end mt-4">
-            <button onclick="closeCalcModal()" class="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-sm font-bold transition">닫기</button>
-        </div>
-    </div>
-</div>
-
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-    // --- 1. 시드 데이터 및 시트 연동 ---
-    const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQsLuqGsy2j3XcFluCAfWReKYNMOmEKoWuZ3hhuCM6jCSwO04Ogh-Ss2Dc4Xtq5_K7soQ42GYi3hE_/pub?gid=642340203&single=true&output=csv";
-
-    const CITIES = {
-        tokyo: { lat: 35.6895, lng: 139.6917, zoom: 14 },
-        danang: { lat: 16.0544, lng: 108.2022, zoom: 14 },
-        bangkok: { lat: 13.7563, lng: 100.5018, zoom: 14 },
-        taipei: { lat: 25.0450, lng: 121.5154, zoom: 14 },
-        paris: { lat: 48.8655, lng: 2.3125, zoom: 14 },
-        seoul: { lat: 37.5665, lng: 126.9780, zoom: 14 },
-        pyeongtaek: { lat: 36.9921, lng: 127.1128, zoom: 14 }
-    };
-
-    const INITIAL_ATMS = [
-        { id: '1', lat: 35.6895, lng: 139.6917, name: "세븐일레븐 세븐뱅크 ATM (신주쿠)", feeType: "FREE", feeAmount: "무료", tip: "트래블로그 무료", verified: 152 },
-        { id: '2', lat: 35.6985, lng: 139.7717, name: "이온뱅크 ATM (아키하바라)", feeType: "FREE", feeAmount: "무료", tip: "트래블월렛 무료", verified: 98 },
-        { id: '3', lat: 35.6580, lng: 139.7016, name: "로손 ATM (시부야)", feeType: "MODERATE", feeAmount: "110~220엔", tip: "소액 부과", verified: 45 },
-        { id: '4', lat: 16.0544, lng: 108.2022, name: "VP Bank ATM (다낭 시내)", feeType: "FREE", feeAmount: "무료", tip: "트래블월렛 무료 인출", verified: 310 },
-        { id: '5', lat: 16.0620, lng: 108.2210, name: "TP Bank ATM", feeType: "FREE", feeAmount: "무료", tip: "트래블월렛 지원", verified: 215 },
-        { id: '6', lat: 13.7563, lng: 100.5018, name: "Krungsri Bank ATM (카오산로드)", feeType: "EXPENSIVE", feeAmount: "220바트", tip: "태국은 대부분 220바트 부과", verified: 420 },
-        { id: '7', lat: 25.0450, lng: 121.5154, name: "타이완은행 ATM (타이베이 메인역)", feeType: "FREE", feeAmount: "무료", tip: "대만은 대부분 은행 ATM 무료", verified: 180 },
-        { id: '8', lat: 48.8655, lng: 2.3125, name: "Credit Agricole ATM (샹젤리제)", feeType: "FREE", feeAmount: "무료", tip: "트래블페이 이용시 면제", verified: 75 },
-        { id: '9', lat: 36.9958, lng: 127.1338, name: "하나은행 ATM (평택대학교 학생회관)", feeType: "FREE", feeAmount: "무료", tip: "재학생 수수료 면제", verified: 480 }
-    ];
-
-    let allATMs = [];
-    let currentFeeFilter = 'ALL';
-
-    // --- 2. 100% 안전한 CSV 파서 ---
-    function parseCSV(text) {
-        const rows = [];
-        let row = [];
-        let field = '';
-        let inQuotes = false;
-        
-        for (let i = 0; i < text.length; i++) {
-            const c = text[i];
-            const next = text[i + 1];
+        // --- 2. 줄바꿈 에러 없는 파서 ---
+        function parseCSV(text) {
+            const rows = [];
+            let row = [];
+            let field = '';
+            let inQuotes = false;
             
-            if (inQuotes) {
-                if (c === '"' && next === '"') { field += '"'; i++; }
-                else if (c === '"') { inQuotes = false; }
-                else { field += c; }
-            } else {
-                if (c === '"') { inQuotes = true; }
-                else if (c === ',') { row.push(field.trim()); field = ''; }
-                else if (c === '\n' || (c === '\r' && next === '\n')) {
-                    if (c === '\r') i++;
-                    row.push(field.trim());
-                    if (row.some(cell => cell !== '')) rows.push(row);
-                    row = []; field = '';
-                } else {
-                    field += c;
-                }
-            }
-        }
-        if (field.length > 0 || row.length > 0) {
-            row.push(field.trim());
-            if (row.some(cell => cell !== '')) rows.push(row);
-        }
-        return rows;
-    }
-
-    async function initData() {
-        try {
-            const res = await fetch(GOOGLE_SHEET_CSV_URL);
-            const text = await res.text();
-            const rows = parseCSV(text);
-            
-            const sheetData = [];
-            for (let i = 1; i < rows.length; i++) {
-                if (rows[i].length >= 8) {
-                    sheetData.push({
-                        id: rows[i][0], lat: parseFloat(rows[i][3]), lng: parseFloat(rows[i][4]),
-                        name: rows[i][2], feeType: rows[i][5], feeAmount: rows[i][6],
-                        tip: rows[i][7], verified: parseInt(rows[i][8] || "0")
-                    });
-                }
-            }
-            allATMs = [...INITIAL_ATMS];
-            sheetData.forEach(sd => { if (!allATMs.find(a => a.id === sd.id)) allATMs.push(sd); });
-        } catch (e) {
-            allATMs = [...INITIAL_ATMS];
-        }
-        
-        const cached = localStorage.getItem("feefree_data_original_v1");
-        if (cached) {
-            JSON.parse(cached).forEach(ld => { if (!allATMs.find(a => a.id === ld.id)) allATMs.push(ld); });
-        }
-        renderATMs();
-    }
-
-    function saveData() {
-        const addedData = allATMs.filter(a => !INITIAL_ATMS.find(init => init.id === a.id));
-        localStorage.setItem("feefree_data_original_v1", JSON.stringify(addedData));
-    }
-
-    // ★ API 키 없는 완전 무료 OpenStreetMap 복구 완료 ★
-    const map = L.map('map', { zoomControl: false }).setView([CITIES.tokyo.lat, CITIES.tokyo.lng], CITIES.tokyo.zoom);
-    L.control.zoom({ position: 'topright' }).addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap | FeeFree ATM'
-    }).addTo(map);
-
-    let markersLayer = L.layerGroup().addTo(map);
-    let myCurrentLat = CITIES.tokyo.lat;
-    let myCurrentLng = CITIES.tokyo.lng;
-
-    // --- 4. 컨트롤 로직 ---
-    function moveToCity(cityKey) {
-        const city = CITIES[cityKey];
-        if(city) {
-            map.setView([city.lat, city.lng], city.zoom);
-            myCurrentLat = city.lat;
-            myCurrentLng = city.lng;
-            applyFilters();
-        }
-    }
-
-    function moveToMyGPS() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition((pos) => {
-                myCurrentLat = pos.coords.latitude;
-                myCurrentLng = pos.coords.longitude;
-                map.setView([myCurrentLat, myCurrentLng], 15);
-                applyFilters();
-            }, () => { alert("GPS 권한을 허용해주세요."); });
-        } else {
-            alert("이 브라우저에서는 GPS를 지원하지 않습니다.");
-        }
-    }
-
-    function calcDist(lat1, lon1, lat2, lon2) {
-        const R = 6371;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)*Math.sin(dLon/2);
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-
-    // --- 5. 500개 수집 완벽 연동 로직 (atm=yes 포함) ---
-    async function fetchOSMData() {
-        const bounds = map.getBounds();
-        const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
-        
-        const query = `
-            [out:json][timeout:25];
-            (
-              node["amenity"="atm"](${bbox});
-              node["atm"="yes"](${bbox});
-            );
-            out body 500;
-        `;
-        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
-        
-        const btn = document.querySelector('button[onclick="fetchOSMData()"]');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2 text-lg"></i>데이터 실시간 수집중...';
-        btn.disabled = true;
-
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            
-            let newCount = 0;
-            data.elements.forEach(el => {
-                if (!allATMs.find(a => a.id === `osm_${el.id}`)) {
-                    let atmName = el.tags.name || el.tags.operator || "현지 ATM (은행/편의점)";
-                    let feeType = "MODERATE";
-                    let feeAmount = "수수료 확인 필요";
-                    let tip = "OSM 자동 수집 데이터";
-
-                    if (atmName.toLowerCase().includes('seven') || atmName.includes('セブン')) {
-                        atmName = "세븐뱅크 ATM"; feeType = "FREE"; feeAmount = "무료"; tip = "트래블로그 카드 수수료 면제 기기";
-                    }
-
-                    allATMs.push({
-                        id: `osm_${el.id}`, lat: el.lat, lng: el.lon, name: atmName,
-                        feeType: feeType, feeAmount: feeAmount, tip: tip, verified: Math.floor(Math.random() * 10)
-                    });
-                    newCount++;
-                }
-            });
-            
-            alert(`✅ ${newCount}개의 실제 주변 ATM 정보를 추가로 수집했습니다!\n(일본 편의점 ATM 포함)`);
-            saveData();
-            applyFilters();
-        } catch (error) {
-            alert("수집 중 오류가 발생했습니다. 지도를 조금 확대하고 다시 시도해주세요.");
-        } finally {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    }
-
-    // --- 6. 필터 및 오리지널 카드 렌더링 ---
-    function setFeeFilter(type) {
-        currentFeeFilter = type;
-        const activeClass = "flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold transition shadow-md";
-        const inactiveClass = "flex-1 py-2 bg-white text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-bold transition border border-gray-200 shadow-sm";
-        
-        document.getElementById('btn-filter-ALL').className = type === 'ALL' ? activeClass : inactiveClass;
-        document.getElementById('btn-filter-FREE').className = type === 'FREE' ? activeClass : inactiveClass;
-        document.getElementById('btn-filter-TRAVEL').className = type === 'TRAVEL' ? activeClass : inactiveClass;
-        applyFilters();
-    }
-
-    function applyFilters() { renderATMs(); }
-
-    function getIconHTML(type) {
-        let colorClass = type === 'FREE' ? 'marker-free' : type === 'EXPENSIVE' ? 'marker-expensive' : 'marker-moderate';
-        let symbol = type === 'FREE' ? '₩' : type === 'EXPENSIVE' ? '!' : '$';
-        return `<div class="custom-marker ${colorClass}" style="width: 32px; height: 32px;">${symbol}</div>`;
-    }
-
-    function verifyATM(id) {
-        const atm = allATMs.find(a => a.id === id);
-        if (atm) {
-            atm.verified = (atm.verified || 0) + 1;
-            alert("정보가 맞아요 (+1) 투표가 반영되었습니다.");
-            saveData(); applyFilters();
-        }
-    }
-
-    function renderATMs() {
-        markersLayer.clearLayers();
-        const listContainer = document.getElementById('list-container');
-        listContainer.innerHTML = '';
-        
-        const radius = parseFloat(document.getElementById('radius-select').value);
-        let centerLat = map.getCenter().lat;
-        let centerLng = map.getCenter().lng;
-        let visibleCount = 0;
-
-        let sortedATMs = allATMs.map(atm => {
-            return { ...atm, distance: calcDist(centerLat, centerLng, atm.lat, atm.lng) };
-        }).sort((a, b) => a.distance - b.distance);
-
-        sortedATMs.forEach(atm => {
-            if (atm.distance > radius) return;
-            if (currentFeeFilter === 'FREE' && atm.feeType !== 'FREE') return;
-            if (currentFeeFilter === 'TRAVEL' && !atm.tip.includes('트래블')) return;
-
-            visibleCount++;
-            
-            const icon = L.divIcon({ html: getIconHTML(atm.feeType), className: '', iconSize: [32, 32] });
-            const marker = L.marker([atm.lat, atm.lng], { icon }).addTo(markersLayer);
-            
-            let badgeHtml = atm.feeType === 'FREE' ? '<span class="bg-green-100 text-green-700 text-[10px] font-black px-2 py-0.5 rounded ml-1">무료</span>' : '';
-            marker.bindPopup(`
-                <div class="text-center font-sans p-1">
-                    <div class="font-black text-[15px] text-gray-800 mb-1">${atm.name} ${badgeHtml}</div>
-                    <div class="text-sm font-bold text-gray-600 mb-2">수수료: ${atm.feeAmount}</div>
-                    <div class="text-xs bg-gray-100 p-2 rounded text-gray-600 font-medium">${atm.tip}</div>
-                </div>
-            `);
-
-            // 오리지널 화이트 카드 UI
-            let typeColor = atm.feeType === 'FREE' ? 'text-green-600' : atm.feeType === 'EXPENSIVE' ? 'text-red-500' : 'text-orange-500';
-            const card = document.createElement('div');
-            card.className = "bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-400 cursor-pointer transition-all shadow-sm hover:shadow-md group";
-            card.innerHTML = `
-                <div class="flex justify-between items-start mb-2" onclick="map.flyTo([${atm.lat}, ${atm.lng}], 16); setTimeout(()=> marker.openPopup(), 300);">
-                    <span class="font-black text-gray-800 text-[15px] group-hover:text-blue-600 transition">${atm.name}</span>
-                    <span class="text-[11px] text-gray-500 bg-gray-100 px-2 py-1 rounded-md font-mono border border-gray-200">${atm.distance.toFixed(1)}km</span>
-                </div>
-                <div class="flex items-center gap-2 mb-2" onclick="map.flyTo([${atm.lat}, ${atm.lng}], 16);">
-                    <div class="text-[13px] ${typeColor} font-black bg-gray-50 px-2 py-0.5 rounded border border-gray-100">${atm.feeAmount}</div>
-                    ${atm.feeType === 'FREE' ? '<i class="fa-solid fa-check-circle text-green-500 text-sm"></i>' : ''}
-                </div>
-                <div class="text-[12px] text-gray-500 mb-4 pl-2 border-l-2 border-gray-300">${atm.tip}</div>
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                const next = text[i + 1];
                 
-                <div class="flex justify-between items-center pt-3 border-t border-gray-100">
-                    <span class="text-[11px] text-gray-400 font-bold"><i class="fa-solid fa-user-check mr-1"></i>${atm.verified || 0}명 검증</span>
-                    <button onclick="event.stopPropagation(); verifyATM('${atm.id}')" class="text-[11px] bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 px-3 py-1.5 rounded-lg transition font-bold border border-gray-200">
-                        <i class="fa-solid fa-thumbs-up mr-1"></i>정보 맞음
-                    </button>
-                </div>
+                if (inQuotes) {
+                    if (c === '"' && next === '"') { field += '"'; i++; }
+                    else if (c === '"') { inQuotes = false; }
+                    else { field += c; }
+                } else {
+                    if (c === '"') { inQuotes = true; }
+                    else if (c === ',') { row.push(field.trim()); field = ''; }
+                    else if (c === '\n' || (c === '\r' && next === '\n')) {
+                        if (c === '\r') i++;
+                        row.push(field.trim());
+                        if (row.some(cell => cell !== '')) rows.push(row);
+                        row = []; field = '';
+                    } else {
+                        field += c;
+                    }
+                }
+            }
+            if (field.length > 0 || row.length > 0) {
+                row.push(field.trim());
+                if (row.some(cell => cell !== '')) rows.push(row);
+            }
+            return rows;
+        }
+
+        async function initData() {
+            try {
+                const res = await fetch(GOOGLE_SHEET_CSV_URL);
+                const text = await res.text();
+                const rows = parseCSV(text);
+                
+                const sheetData = [];
+                for (let i = 1; i < rows.length; i++) {
+                    if (rows[i].length >= 8) {
+                        sheetData.push({
+                            id: rows[i][0], lat: parseFloat(rows[i][3]), lng: parseFloat(rows[i][4]),
+                            name: rows[i][2], feeType: rows[i][5], feeAmount: rows[i][6],
+                            tip: rows[i][7], verified: parseInt(rows[i][8] || "0")
+                        });
+                    }
+                }
+                allATMs = [...INITIAL_ATMS];
+                sheetData.forEach(sd => { if (!allATMs.find(a => a.id === sd.id)) allATMs.push(sd); });
+            } catch (e) {
+                allATMs = [...INITIAL_ATMS];
+            }
+            
+            const cached = localStorage.getItem("feefree_data_original_dark");
+            if (cached) {
+                JSON.parse(cached).forEach(ld => { if (!allATMs.find(a => a.id === ld.id)) allATMs.push(ld); });
+            }
+            renderATMs();
+        }
+
+        function saveData() {
+            const addedData = allATMs.filter(a => !INITIAL_ATMS.find(init => init.id === a.id));
+            localStorage.setItem("feefree_data_original_dark", JSON.stringify(addedData));
+        }
+
+        // ★ API Key 불필요한 정상 무료 지도 (OpenStreetMap) ★
+        const map = L.map('map', { zoomControl: false }).setView([CITIES.tokyo.lat, CITIES.tokyo.lng], CITIES.tokyo.zoom);
+        L.control.zoom({ position: 'bottomright' }).addTo(map); // 줌 컨트롤 우측 하단으로 이동
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        let markersLayer = L.layerGroup().addTo(map);
+        let myCurrentLat = CITIES.tokyo.lat;
+        let myCurrentLng = CITIES.tokyo.lng;
+
+        // --- 4. 컨트롤 로직 ---
+        function moveToCity(cityKey) {
+            const city = CITIES[cityKey];
+            if(city) {
+                map.setView([city.lat, city.lng], city.zoom);
+                myCurrentLat = city.lat;
+                myCurrentLng = city.lng;
+                applyFilters();
+            }
+        }
+
+        function moveToMyGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    myCurrentLat = pos.coords.latitude;
+                    myCurrentLng = pos.coords.longitude;
+                    map.setView([myCurrentLat, myCurrentLng], 15);
+                    applyFilters();
+                }, () => { alert("GPS 권한을 허용해주세요."); });
+            } else {
+                alert("브라우저에서 GPS를 지원하지 않습니다.");
+            }
+        }
+
+        function calcDist(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)*Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        // --- 5. 500개 자동 수집 로직 (일본 편의점 atm=yes 포함) ---
+        async function fetchOSMData() {
+            const bounds = map.getBounds();
+            const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+            
+            const query = `
+                [out:json][timeout:25];
+                (
+                  node["amenity"="atm"](${bbox});
+                  node["atm"="yes"](${bbox});
+                );
+                out body 500;
             `;
-            listContainer.appendChild(card);
-        });
+            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+            
+            const btn = document.querySelector('button[onclick="fetchOSMData()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>수집중...';
+            btn.disabled = true;
 
-        document.getElementById('result-count').innerText = `${visibleCount}개`;
-    }
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                let newCount = 0;
+                data.elements.forEach(el => {
+                    if (!allATMs.find(a => a.id === `osm_${el.id}`)) {
+                        let atmName = el.tags.name || el.tags.operator || "현지 ATM (은행/편의점)";
+                        let feeType = "MODERATE";
+                        let feeAmount = "수수료 확인 필요";
+                        let tip = "OSM 자동 수집 데이터";
 
-    // --- 7. 모달 제어 ---
-    function openReportModal() { document.getElementById('report-modal').style.display = 'flex'; }
-    function closeReportModal() { document.getElementById('report-modal').style.display = 'none'; document.getElementById('report-name').value = ''; }
-    function submitReport() {
-        const name = document.getElementById('report-name').value;
-        const feeType = document.getElementById('report-fee-type').value;
-        const locType = document.getElementById('report-location-type').value;
+                        if (atmName.toLowerCase().includes('seven') || atmName.includes('セブン')) {
+                            atmName = "세븐뱅크 ATM"; feeType = "FREE"; feeAmount = "무료"; tip = "트래블로그 카드 수수료 면제 기기";
+                        }
 
-        if (!name) return alert("은행이나 기기명을 입력해주세요.");
+                        allATMs.push({
+                            id: `osm_${el.id}`, lat: el.lat, lng: el.lon, name: atmName,
+                            feeType: feeType, feeAmount: feeAmount, tip: tip, verified: Math.floor(Math.random() * 10)
+                        });
+                        newCount++;
+                    }
+                });
+                
+                alert(`✅ ${newCount}개의 실제 주변 ATM 정보 추가 수집 완료!\n(일본 편의점 ATM 포함)`);
+                saveData();
+                applyFilters();
+            } catch (error) {
+                alert("수집 중 오류 발생. 지도를 확대하고 다시 시도해주세요.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
 
-        let targetLat = locType === 'center' ? map.getCenter().lat : myCurrentLat;
-        let targetLng = locType === 'center' ? map.getCenter().lng : myCurrentLng;
+        // --- 6. 필터 및 리스트 (캡처 이미지 다크 카드 UI) ---
+        function setFeeFilter(type) {
+            currentFeeFilter = type;
+            const activeClass = "px-3 py-1 bg-gray-600 text-white text-xs font-bold transition";
+            const inactiveClass = "px-3 py-1 hover:bg-gray-700 text-xs transition flex items-center";
+            
+            document.getElementById('btn-filter-ALL').className = type === 'ALL' ? activeClass : inactiveClass + " border-l border-gray-700";
+            
+            let freeClass = inactiveClass + " border-l border-gray-700";
+            if(type === 'FREE') freeClass = activeClass + " border-l border-gray-700";
+            document.getElementById('btn-filter-FREE').className = freeClass;
+            document.getElementById('btn-filter-FREE').innerHTML = type === 'FREE' ? "무료만" : `<span class="w-2 h-2 rounded-full bg-green-500 mr-1.5"></span>무료만`;
 
-        allATMs.push({
-            id: 'report_' + Date.now(), lat: targetLat, lng: targetLng, name: name + " (유저 신규 제보)",
-            feeType: feeType, feeAmount: feeType === 'FREE' ? "무료 제보됨" : "수수료 제보됨", tip: "크라우드소싱 검증 대기중", verified: 1
-        });
+            let travelClass = inactiveClass + " border-l border-gray-700";
+            if(type === 'TRAVEL') travelClass = activeClass + " border-l border-gray-700";
+            document.getElementById('btn-filter-TRAVEL').className = travelClass;
+            document.getElementById('btn-filter-TRAVEL').innerHTML = type === 'TRAVEL' ? "트래블카드 제휴" : `<i class="fa-solid fa-credit-card mr-1.5 text-blue-400"></i>트래블카드 제휴`;
 
-        alert("제보가 성공적으로 로컬/서버에 등록되었습니다!");
-        saveData(); closeReportModal(); applyFilters(); map.setView([targetLat, targetLng], 16);
-    }
+            applyFilters();
+        }
 
-    function openCalcModal() { document.getElementById('calc-modal').style.display = 'flex'; }
-    function closeCalcModal() { document.getElementById('calc-modal').style.display = 'none'; document.getElementById('calc-result').style.display = 'none'; }
-    function calculateSavings() {
-        const fee = parseInt(document.getElementById('calc-country').value);
-        const count = parseInt(document.getElementById('calc-count').value) || 0;
-        const total = (fee * count).toLocaleString();
-        const resultDiv = document.getElementById('calc-result');
-        resultDiv.innerHTML = `🎉 FeeFree 사용 시<br>총 <span class="text-blue-600 text-2xl">${total}원</span> 절약 예상!`;
-        resultDiv.style.display = 'block';
-    }
+        function applyFilters() { renderATMs(); }
 
-    map.on('moveend', () => { applyFilters(); });
-    initData();
+        function getIconHTML(type) {
+            let colorClass = type === 'FREE' ? 'marker-free' : type === 'EXPENSIVE' ? 'marker-expensive' : 'marker-moderate';
+            let symbol = type === 'FREE' ? '₩' : type === 'EXPENSIVE' ? '!' : '$';
+            return `<div class="custom-marker ${colorClass}" style="width: 28px; height: 28px;">${symbol}</div>`;
+        }
 
-</script>
+        function verifyATM(id) {
+            const atm = allATMs.find(a => a.id === id);
+            if (atm) {
+                atm.verified = (atm.verified || 0) + 1;
+                alert("정보가 맞아요 (+1) 투표 반영 완료!");
+                saveData(); applyFilters();
+            }
+        }
+
+        function renderATMs() {
+            markersLayer.clearLayers();
+            const listContainer = document.getElementById('list-container');
+            listContainer.innerHTML = '';
+            
+            const radius = parseFloat(document.getElementById('radius-select').value);
+            let centerLat = map.getCenter().lat;
+            let centerLng = map.getCenter().lng;
+            let visibleCount = 0;
+
+            let sortedATMs = allATMs.map(atm => {
+                return { ...atm, distance: calcDist(centerLat, centerLng, atm.lat, atm.lng) };
+            }).sort((a, b) => a.distance - b.distance);
+
+            sortedATMs.forEach(atm => {
+                if (atm.distance > radius) return;
+                if (currentFeeFilter === 'FREE' && atm.feeType !== 'FREE') return;
+                if (currentFeeFilter === 'TRAVEL' && !atm.tip.includes('트래블')) return;
+
+                visibleCount++;
+                
+                const icon = L.divIcon({ html: getIconHTML(atm.feeType), className: '', iconSize: [28, 28] });
+                const marker = L.marker([atm.lat, atm.lng], { icon }).addTo(markersLayer);
+                
+                let badgeHtml = atm.feeType === 'FREE' ? '<span class="bg-green-100 text-green-700 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">무료</span>' : '';
+                marker.bindPopup(`
+                    <div class="text-center font-sans p-1">
+                        <div class="font-bold text-[13px] text-gray-800 mb-1">${atm.name} ${badgeHtml}</div>
+                        <div class="text-xs font-bold text-gray-600 mb-1">수수료: ${atm.feeAmount}</div>
+                        <div class="text-[10px] bg-gray-100 p-1.5 rounded text-gray-600">${atm.tip}</div>
+                    </div>
+                `);
+
+                // 캡처 이미지와 똑같은 다크 카드 UI 생성
+                let typeColor = atm.feeType === 'FREE' ? 'text-green-400' : atm.feeType === 'EXPENSIVE' ? 'text-red-400' : 'text-orange-400';
+                const card = document.createElement('div');
+                card.className = "bg-[#1e293b] p-3 rounded-lg border border-gray-700 hover:border-blue-500 cursor-pointer transition-all flex flex-col gap-1.5";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start" onclick="map.flyTo([${atm.lat}, ${atm.lng}], 16); setTimeout(()=> marker.openPopup(), 300);">
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-[10px] text-blue-400 font-bold border border-blue-800 bg-blue-900/30 px-1.5 py-0.5 rounded self-start">내 위치에서 ${(atm.distance*1000).toFixed(0)}m</span>
+                            <span class="font-bold text-gray-100 text-xs mt-1 leading-tight">${atm.name}</span>
+                        </div>
+                        <span class="text-[11px] font-bold text-gray-300 bg-gray-800 px-1.5 py-1 rounded border border-gray-600 ml-2 whitespace-nowrap">${atm.feeAmount}</span>
+                    </div>
+                    <div class="text-[10px] text-gray-400 mt-1 pl-2 border-l border-gray-600" onclick="map.flyTo([${atm.lat}, ${atm.lng}], 16);">${atm.tip}</div>
+                    
+                    <div class="flex justify-between items-center mt-1.5 pt-2 border-t border-gray-700">
+                        <span class="text-[9px] text-gray-500"><i class="fa-solid fa-user-check mr-1"></i>${atm.verified || 0}명 검증</span>
+                        <button onclick="event.stopPropagation(); verifyATM('${atm.id}')" class="text-[9px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded border border-gray-600 transition flex items-center">
+                            <i class="fa-solid fa-thumbs-up mr-1"></i>정보 맞음
+                        </button>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+
+            // 필터 버튼 숫자 업데이트용 (옵션)
+            document.getElementById('btn-filter-ALL').innerText = `전체보기 (${allATMs.length})`;
+        }
+
+        // --- 7. 모달 제어 ---
+        function openReportModal() { document.getElementById('report-modal').style.display = 'flex'; }
+        function closeReportModal() { document.getElementById('report-modal').style.display = 'none'; document.getElementById('report-name').value = ''; }
+        function submitReport() {
+            const name = document.getElementById('report-name').value;
+            const feeType = document.getElementById('report-fee-type').value;
+            const locType = document.getElementById('report-location-type').value;
+
+            if (!name) return alert("기기명을 입력해주세요.");
+
+            let targetLat = locType === 'center' ? map.getCenter().lat : myCurrentLat;
+            let targetLng = locType === 'center' ? map.getCenter().lng : myCurrentLng;
+
+            allATMs.push({
+                id: 'report_' + Date.now(), lat: targetLat, lng: targetLng, name: name + " (신규 제보)",
+                feeType: feeType, feeAmount: feeType === 'FREE' ? "무료 제보" : "수수료 제보", tip: "검증 대기중", verified: 1
+            });
+
+            alert("제보 완료!");
+            saveData(); closeReportModal(); applyFilters(); map.setView([targetLat, targetLng], 16);
+        }
+
+        function openCalcModal() { document.getElementById('calc-modal').style.display = 'flex'; }
+        function closeCalcModal() { document.getElementById('calc-modal').style.display = 'none'; document.getElementById('calc-result').style.display = 'none'; }
+        function calculateSavings() {
+            const fee = parseInt(document.getElementById('calc-country').value);
+            const count = parseInt(document.getElementById('calc-count').value) || 0;
+            const total = (fee * count).toLocaleString();
+            const resultDiv = document.getElementById('calc-result');
+            resultDiv.innerHTML = `예상 절감액: <span class="text-white text-lg">${total}원</span>`;
+            resultDiv.style.display = 'block';
+        }
+
+        map.on('moveend', () => { applyFilters(); });
+        initData();
+
+    </script>
 </body>
 </html>
