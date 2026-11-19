@@ -24,9 +24,16 @@ INITIAL_ATMS = [
 
 
 def get_connection(db_path=None):
-    conn = sqlite3.connect(db_path or DB_PATH)
+    conn = sqlite3.connect(db_path or DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
     return conn
+
+
+def _ensure_column(cur, table, column, definition):
+    cols = [r["name"] for r in cur.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column not in cols:
+        cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def init_db(db_path=None):
@@ -61,6 +68,12 @@ def init_db(db_path=None):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # 구버전 DB 파일이 남아있을 경우를 대비한 자동 컬럼 마이그레이션
+    _ensure_column(cur, "users", "preferred_card", "TEXT DEFAULT '트래블로그'")
+    _ensure_column(cur, "users", "push_enabled", "INTEGER DEFAULT 1")
+    _ensure_column(cur, "users", "role", "TEXT DEFAULT 'user'")
+    _ensure_column(cur, "atms", "reporter_id", "INTEGER")
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS reviews (
@@ -127,17 +140,15 @@ def init_db(db_path=None):
             (u1_id, "환영합니다!", "FeeFree ATM에서 전 세계 무료 ATM을 찾고 수수료를 절약해 보세요."),
         )
 
-    for atm in INITIAL_ATMS:
-        cur.execute(
-            """
-            INSERT OR IGNORE INTO atms
-            (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            atm,
-        )
+    cur.executemany(
+        """
+        INSERT OR IGNORE INTO atms
+        (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        INITIAL_ATMS,
+    )
 
-    # 초기 샘플 리뷰
     cur.execute("SELECT COUNT(*) as cnt FROM reviews")
     if cur.fetchone()["cnt"] == 0:
         cur.execute(
@@ -179,17 +190,37 @@ def get_atm_by_id(atm_id, db_path=None):
     return format_atm_row(r) if r else None
 
 
-def insert_atm(atm_id, name, lat, lng, fee_type, fee_amount, tip, reporter, reporter_id=None, db_path=None):
+def insert_atm(atm_id, name, lat, lng, fee_type, fee_amount, tip, reporter, reporter_id=None, verified=1, db_path=None):
     conn = get_connection(db_path)
     conn.execute(
         """
         INSERT OR IGNORE INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (atm_id, name, lat, lng, fee_type, fee_amount, tip, reporter, reporter_id),
+        (atm_id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id),
     )
     conn.commit()
     conn.close()
+
+
+def bulk_insert_atms(records, db_path=None):
+    """대량 OSM 수집 데이터를 단일 트랜잭션으로 고속 일괄 저장"""
+    if not records:
+        return 0
+    conn = get_connection(db_path)
+    cur = conn.cursor()
+    before = cur.execute("SELECT COUNT(*) FROM atms").fetchone()[0]
+    cur.executemany(
+        """
+        INSERT OR IGNORE INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+        """,
+        records,
+    )
+    conn.commit()
+    after = cur.execute("SELECT COUNT(*) FROM atms").fetchone()[0]
+    conn.close()
+    return after - before
 
 
 def delete_atm_record(atm_id, db_path=None):
@@ -218,7 +249,7 @@ def verify_atm_record(atm_id, payload=None, voter_nickname=None, db_path=None):
                     f"{voter_nickname}님이 회원님이 제보한 '{row['name']}'에 '정보 맞음(+1)'을 눌렀습니다.",
                 ),
             )
-    elif payload:
+    elif payload and "lat" in payload and "lng" in payload:
         new_count = int(payload.get("verified", 0)) + 1
         cur.execute(
             """
@@ -256,10 +287,11 @@ def get_reviews(atm_id, db_path=None):
 
 
 def add_review(atm_id, user_id, nickname, rating, comment, db_path=None):
+    rating_val = max(1, min(5, int(rating)))
     conn = get_connection(db_path)
     conn.execute(
         "INSERT INTO reviews (atm_id, user_id, nickname, rating, comment) VALUES (?, ?, ?, ?, ?)",
-        (atm_id, user_id, nickname, int(rating), comment.strip()),
+        (atm_id, user_id, nickname, rating_val, comment.strip()),
     )
     conn.commit()
     conn.close()
@@ -328,11 +360,10 @@ def add_notification(user_id, title, message, db_path=None):
 def broadcast_notification(title, message, db_path=None):
     conn = get_connection(db_path)
     users = conn.execute("SELECT id FROM users").fetchall()
-    for u in users:
-        conn.execute(
-            "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
-            (u["id"], title, message),
-        )
+    conn.executemany(
+        "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
+        [(u["id"], title, message) for u in users],
+    )
     conn.commit()
     conn.close()
     return len(users)

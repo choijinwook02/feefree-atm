@@ -1,3 +1,4 @@
+import sqlite3
 from functools import wraps
 from flask import session, redirect, url_for, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -9,6 +10,8 @@ def register_user(username, password, nickname, preferred_card="트래블로그"
     nickname = nickname.strip()
     if not username or not password or not nickname:
         return False, "아이디, 비밀번호, 닉네임을 모두 입력해주세요."
+    if len(password) < 4:
+        return False, "비밀번호는 4자 이상 입력해주세요."
 
     conn = get_connection(db_path)
     try:
@@ -30,9 +33,12 @@ def register_user(username, password, nickname, preferred_card="트래블로그"
             db_path=db_path,
         )
         return True, "회원가입이 완료되었습니다."
-    except Exception:
+    except sqlite3.IntegrityError:
         conn.close()
         return False, "이미 사용 중인 아이디입니다."
+    except Exception:
+        conn.close()
+        return False, "회원가입 처리 중 오류가 발생했습니다."
 
 
 def authenticate_user(username, password, db_path=None):
