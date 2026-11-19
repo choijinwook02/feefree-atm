@@ -2,16 +2,18 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FeeFree ATM - 글로벌 수수료 무료 ATM 지도</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Pretendard', sans-serif; }
-        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; height: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
         .custom-scroll::-webkit-scrollbar-track { background: #1f2937; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-marker {
             display: flex; justify-content: center; align-items: center;
             border-radius: 50%; color: white; font-weight: 900; border: 2px solid white;
@@ -22,109 +24,109 @@
         .marker-expensive { background-color: #ef4444; }
     </style>
 </head>
-<body class="flex flex-col h-screen w-screen bg-[#0f172a]">
+<body class="flex flex-col h-[100dvh] w-screen bg-[#0f172a]">
 
     <!-- 상단바 1열 -->
     <header class="w-full bg-[#0f172a] text-white border-b border-gray-700 flex-shrink-0 z-[2000]">
-        <div class="flex justify-between items-center px-4 py-2 gap-2 flex-wrap">
-            <div class="flex items-center gap-3">
+        <div class="flex justify-between items-center px-3 md:px-4 py-2 gap-2">
+            <div class="flex items-center gap-2 md:gap-3 flex-shrink-0">
                 <div class="bg-gray-800 p-1.5 rounded-lg border border-gray-600">
-                    <i class="fa-solid fa-w text-gray-300"></i>
+                    <i class="fa-solid fa-w text-gray-300 text-xs md:text-base"></i>
                 </div>
-                <h1 class="text-lg font-bold tracking-tight">
-                    FeeFree ATM <span class="text-xs text-blue-400 font-normal ml-2 tracking-normal hidden sm:inline">100% 수수료 무료 ATM 지도</span>
+                <h1 class="text-base md:text-lg font-bold tracking-tight whitespace-nowrap">
+                    FeeFree ATM <span class="text-xs text-blue-400 font-normal ml-2 tracking-normal hidden lg:inline">100% 수수료 무료 ATM 지도</span>
                 </h1>
             </div>
 
-            <div class="flex items-center gap-2 relative">
+            <div class="flex items-center gap-1.5 md:gap-2 overflow-x-auto no-scrollbar relative py-0.5">
                 <!-- 알림 벨 버튼 -->
-                <button onclick="toggleNotifPanel()" class="relative px-2.5 py-1.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded text-xs font-bold transition flex items-center">
+                <button onclick="toggleNotifPanel()" class="relative px-2.5 py-1.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded text-xs font-bold transition flex items-center flex-shrink-0">
                     <i class="fa-solid fa-bell text-yellow-400"></i>
                     <span id="notif-badge" class="hidden absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">0</span>
                 </button>
 
-                <!-- 알림 드롭다운 -->
-                <div id="notif-panel" class="hidden absolute top-10 right-0 w-80 bg-[#1e293b] border border-gray-600 rounded-xl shadow-2xl z-[3000] overflow-hidden">
-                    <div class="p-3 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
-                        <span class="text-xs font-bold text-white"><i class="fa-solid fa-bell text-yellow-400 mr-1.5"></i>앱 내 알림 센터</span>
-                        <button onclick="markAllRead()" class="text-[10px] text-blue-400 hover:underline">모두 읽음</button>
-                    </div>
-                    <div id="notif-list" class="max-h-64 overflow-y-auto custom-scroll divide-y divide-gray-700/70"></div>
-                </div>
-
-                <a href="/mypage" class="px-2.5 py-1.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded text-xs font-bold transition flex items-center">
-                    <i class="fa-solid fa-user-circle text-blue-400 mr-1.5"></i>{{ user.nickname }}
+                <a href="/mypage" class="px-2.5 py-1.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded text-xs font-bold transition flex items-center whitespace-nowrap flex-shrink-0">
+                    <i class="fa-solid fa-user-circle text-blue-400 mr-1"></i>{{ user.nickname }}
                 </a>
 
                 {% if user.role == 'admin' %}
-                <a href="/admin" class="px-2.5 py-1.5 bg-purple-700/80 border border-purple-500 hover:bg-purple-600 rounded text-xs font-bold transition flex items-center">
-                    <i class="fa-solid fa-shield-halved mr-1.5"></i>관리자
+                <a href="/admin" class="px-2.5 py-1.5 bg-purple-700/80 border border-purple-500 hover:bg-purple-600 rounded text-xs font-bold transition flex items-center whitespace-nowrap flex-shrink-0">
+                    <i class="fa-solid fa-shield-halved mr-1"></i>관리자
                 </a>
                 {% endif %}
 
-                <button onclick="moveToMyGPS()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs font-bold transition flex items-center">
-                    <i class="fa-solid fa-location-crosshairs mr-1.5"></i>내 GPS 위치
+                <button onclick="moveToMyGPS()" class="px-2.5 md:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs font-bold transition flex items-center whitespace-nowrap flex-shrink-0">
+                    <i class="fa-solid fa-location-crosshairs mr-1"></i>내 GPS
                 </button>
-                <button onclick="openCalcModal()" class="px-3 py-1.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded text-xs font-bold transition flex items-center">
-                    <i class="fa-solid fa-calculator mr-1.5 text-yellow-400"></i>절감 계산기
+                <button onclick="openCalcModal()" class="px-2.5 md:px-3 py-1.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded text-xs font-bold transition flex items-center whitespace-nowrap flex-shrink-0">
+                    <i class="fa-solid fa-calculator mr-1 text-yellow-400"></i>계산기
                 </button>
-                <button onclick="openReportModal()" class="px-3 py-1.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded text-xs font-bold transition flex items-center">
-                    <i class="fa-solid fa-plus mr-1.5 text-emerald-400"></i>수수료 제보
+                <button onclick="openReportModal()" class="px-2.5 md:px-3 py-1.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 rounded text-xs font-bold transition flex items-center whitespace-nowrap flex-shrink-0">
+                    <i class="fa-solid fa-plus mr-1 text-emerald-400"></i>제보
                 </button>
-                <a href="/logout" class="px-2.5 py-1.5 bg-red-900/50 hover:bg-red-700 border border-red-700/60 text-red-200 rounded text-xs font-bold transition flex items-center">
+                <a href="/logout" class="px-2.5 py-1.5 bg-red-900/50 hover:bg-red-700 border border-red-700/60 text-red-200 rounded text-xs font-bold transition flex items-center flex-shrink-0">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </a>
             </div>
         </div>
     </header>
 
-    <!-- 상단바 2열 -->
-    <div class="w-full bg-[#1e293b] text-gray-300 border-b border-gray-700 flex-shrink-0 z-[1900] flex justify-between items-center px-4 py-2 gap-2 flex-wrap">
-        <div class="flex items-center gap-2 overflow-x-auto custom-scroll">
-            <button onclick="moveToMyGPS()" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs font-bold whitespace-nowrap flex items-center border border-gray-600">
-                <i class="fa-solid fa-location-dot mr-1 text-blue-400"></i>내 현재 위치 (GPS)
+    <!-- 알림 드롭다운 (헤더 바깥 고정 위치로 모바일 잘림 방지) -->
+    <div id="notif-panel" class="hidden fixed top-12 right-3 w-80 max-w-[calc(100vw-24px)] bg-[#1e293b] border border-gray-600 rounded-xl shadow-2xl z-[3000] overflow-hidden">
+        <div class="p-3 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+            <span class="text-xs font-bold text-white"><i class="fa-solid fa-bell text-yellow-400 mr-1.5"></i>앱 내 알림 센터</span>
+            <button onclick="markAllRead()" class="text-[10px] text-blue-400 hover:underline">모두 읽음</button>
+        </div>
+        <div id="notif-list" class="max-h-64 overflow-y-auto custom-scroll divide-y divide-gray-700/70"></div>
+    </div>
+
+    <!-- 상단바 2열 (모바일 가로 스크롤 지원) -->
+    <div class="w-full bg-[#1e293b] text-gray-300 border-b border-gray-700 flex-shrink-0 z-[1900] flex flex-col md:flex-row md:justify-between md:items-center px-3 md:px-4 py-1.5 md:py-2 gap-1.5 md:gap-2">
+        <div class="flex items-center gap-1.5 md:gap-2 overflow-x-auto no-scrollbar">
+            <button onclick="moveToMyGPS()" class="px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs font-bold whitespace-nowrap flex items-center border border-gray-600 flex-shrink-0">
+                <i class="fa-solid fa-location-dot mr-1 text-blue-400"></i>내 위치
             </button>
-            <span class="text-gray-500 text-xs mx-1">|</span>
-            <span class="text-xs font-bold text-yellow-500 flex items-center mr-1 whitespace-nowrap">
+            <span class="text-gray-500 text-xs">|</span>
+            <span class="text-xs font-bold text-yellow-500 hidden sm:flex items-center mr-1 whitespace-nowrap">
                 <i class="fa-solid fa-graduation-cap mr-1"></i>수업 시연 모드:
             </span>
-            <button id="city-tokyo" onclick="moveToCity('tokyo')" class="city-btn px-3 py-1 bg-blue-600 text-white font-bold rounded text-xs transition whitespace-nowrap">도쿄</button>
-            <button id="city-danang" onclick="moveToCity('danang')" class="city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">다낭</button>
-            <button id="city-bangkok" onclick="moveToCity('bangkok')" class="city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">방콕</button>
-            <button id="city-taipei" onclick="moveToCity('taipei')" class="city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">타이베이</button>
-            <button id="city-paris" onclick="moveToCity('paris')" class="city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">파리</button>
-            <button id="city-pyeongtaek" onclick="moveToCity('pyeongtaek')" class="city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">평택</button>
+            <button id="city-tokyo" onclick="moveToCity('tokyo')" class="city-btn px-2.5 md:px-3 py-1 bg-blue-600 text-white font-bold rounded text-xs transition whitespace-nowrap flex-shrink-0">도쿄</button>
+            <button id="city-danang" onclick="moveToCity('danang')" class="city-btn px-2.5 md:px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap flex-shrink-0">다낭</button>
+            <button id="city-bangkok" onclick="moveToCity('bangkok')" class="city-btn px-2.5 md:px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap flex-shrink-0">방콕</button>
+            <button id="city-taipei" onclick="moveToCity('taipei')" class="city-btn px-2.5 md:px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap flex-shrink-0">타이베이</button>
+            <button id="city-paris" onclick="moveToCity('paris')" class="city-btn px-2.5 md:px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap flex-shrink-0">파리</button>
+            <button id="city-pyeongtaek" onclick="moveToCity('pyeongtaek')" class="city-btn px-2.5 md:px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap flex-shrink-0">평택</button>
         </div>
 
-        <div class="flex items-center gap-3 flex-shrink-0">
-            <div class="flex items-center gap-2">
-                <i class="fa-solid fa-compass text-gray-400 text-sm"></i>
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar flex-shrink-0">
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+                <i class="fa-solid fa-compass text-gray-400 text-xs hidden md:inline"></i>
                 <select id="radius-select" onchange="applyFilters()" class="bg-[#0f172a] border border-gray-600 text-xs rounded px-2 py-1 outline-none text-white">
-                    <option value="bounds">반경: 현재 지도 화면 내</option>
-                    <option value="15" selected>반경: 15km 이내 (기본)</option>
-                    <option value="5">반경: 5km 이내</option>
-                    <option value="1">반경: 1km 이내</option>
-                    <option value="99999">반경: 전 세계 전체</option>
+                    <option value="bounds">현재 화면 내</option>
+                    <option value="15" selected>반경 15km</option>
+                    <option value="5">반경 5km</option>
+                    <option value="1">반경 1km</option>
+                    <option value="99999">전 세계</option>
                 </select>
             </div>
-            <div class="flex bg-[#0f172a] rounded border border-gray-700 overflow-hidden">
-                <button id="btn-filter-ALL" onclick="setFeeFilter('ALL')" class="px-3 py-1 bg-gray-600 text-white text-xs font-bold transition whitespace-nowrap">전체보기</button>
-                <button id="btn-filter-FREE" onclick="setFeeFilter('FREE')" class="px-3 py-1 hover:bg-gray-700 text-xs transition flex items-center border-l border-gray-700 whitespace-nowrap">
-                    <span class="w-2 h-2 rounded-full bg-green-500 mr-1.5"></span>무료만
+            <div class="flex bg-[#0f172a] rounded border border-gray-700 overflow-hidden flex-shrink-0">
+                <button id="btn-filter-ALL" onclick="setFeeFilter('ALL')" class="px-2.5 md:px-3 py-1 bg-gray-600 text-white text-xs font-bold transition whitespace-nowrap">전체보기</button>
+                <button id="btn-filter-FREE" onclick="setFeeFilter('FREE')" class="px-2.5 md:px-3 py-1 hover:bg-gray-700 text-xs transition flex items-center border-l border-gray-700 whitespace-nowrap">
+                    <span class="w-2 h-2 rounded-full bg-green-500 mr-1"></span>무료만
                 </button>
-                <button id="btn-filter-TRAVEL" onclick="setFeeFilter('TRAVEL')" class="px-3 py-1 hover:bg-gray-700 text-xs transition flex items-center border-l border-gray-700 whitespace-nowrap">
-                    <i class="fa-solid fa-credit-card mr-1.5 text-blue-400"></i>트래블카드 제휴
+                <button id="btn-filter-TRAVEL" onclick="setFeeFilter('TRAVEL')" class="px-2.5 md:px-3 py-1 hover:bg-gray-700 text-xs transition flex items-center border-l border-gray-700 whitespace-nowrap">
+                    <i class="fa-solid fa-credit-card mr-1 text-blue-400"></i>트래블카드
                 </button>
             </div>
         </div>
     </div>
 
     <!-- 메인 지도 & 플로팅 패널 -->
-    <div class="flex-1 relative w-full h-full z-0 bg-gray-200">
+    <div class="flex-1 relative w-full h-full z-0 bg-gray-200 overflow-hidden">
         <div id="map" class="w-full h-full"></div>
 
-        <!-- 좌측 상단: 실시간 OSM 자동 수집 -->
-        <div class="absolute top-4 left-4 z-[1000] w-72 bg-[#1e293b]/95 border border-gray-700 rounded-lg shadow-xl text-white flex flex-col pointer-events-auto">
+        <!-- [PC 전용] 좌측 상단: 실시간 OSM 자동 수집 -->
+        <div class="hidden md:flex absolute top-4 left-4 z-[1000] w-72 bg-[#1e293b]/95 border border-gray-700 rounded-lg shadow-xl text-white flex-col pointer-events-auto">
             <div class="p-3 border-b border-gray-700 bg-gray-800 rounded-t-lg flex justify-between items-center">
                 <h2 class="text-xs font-bold flex items-center">
                     <i class="fa-solid fa-satellite-dish text-blue-400 mr-2"></i>실시간 OSM 자동 수집
@@ -142,24 +144,42 @@
             </div>
         </div>
 
-        <!-- 좌측 하단: 범례 -->
-        <div class="absolute bottom-6 left-4 z-[1000] bg-[#1e293b]/95 border border-gray-700 rounded-lg shadow-xl p-3 text-white pointer-events-auto flex flex-col gap-2">
+        <!-- [모바일 전용] 수집 상태 토스트 -->
+        <div id="mobile-osm-status" class="md:hidden hidden absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-[#1e293b]/95 border border-blue-500/50 text-white text-[11px] px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap"></div>
+
+        <!-- [PC 전용] 좌측 하단: 범례 -->
+        <div class="hidden md:flex absolute bottom-6 left-4 z-[1000] bg-[#1e293b]/95 border border-gray-700 rounded-lg shadow-xl p-3 text-white pointer-events-auto flex-col gap-2">
             <div class="text-[10px] flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500 border border-white"></span>내 현재 위치 (GPS)</div>
             <div class="text-[10px] flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500 border border-white flex justify-center items-center text-[8px] font-bold">₩</span>무료 ATM</div>
             <div class="text-[10px] flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500 border border-white flex justify-center items-center text-[8px] font-bold">$</span>소액 부과 ATM</div>
             <div class="text-[10px] flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500 border border-white flex justify-center items-center text-[8px] font-bold">!</span>고액 주의 (220바트 등)</div>
         </div>
 
-        <!-- 우측: 내 주변 가까운 ATM 목록 -->
-        <div class="absolute top-4 right-4 z-[1000] w-[350px] max-h-[calc(100vh-140px)] bg-[#1e293b]/95 border border-gray-700 rounded-lg shadow-2xl flex flex-col pointer-events-auto overflow-hidden">
+        <!-- [모바일 전용] 하단 플로팅 액션 버튼 (지도 가림 방지) -->
+        <div id="mobile-bottom-bar" class="md:hidden absolute bottom-5 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 pointer-events-auto">
+            <button id="mobile-osm-btn" onclick="fetchOSMData()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-full shadow-xl border border-blue-400/50 flex items-center whitespace-nowrap">
+                <i class="fa-solid fa-satellite-dish mr-1.5"></i>주변 ATM 수집
+            </button>
+            <button onclick="toggleMobileList(true)" class="px-4 py-2.5 bg-[#1e293b]/95 text-white text-xs font-bold rounded-full shadow-xl border border-gray-600 flex items-center whitespace-nowrap">
+                <i class="fa-solid fa-list text-blue-400 mr-1.5"></i>목록 보기 (<span id="mobile-visible-count">0</span>)
+            </button>
+        </div>
+
+        <!-- ATM 목록 패널 (PC: 우측 고정 플로팅 / 모바일: 하단 바텀시트 토글) -->
+        <div id="atm-list-panel" class="hidden md:flex absolute bottom-0 left-0 right-0 md:bottom-auto md:left-auto md:top-4 md:right-4 z-[1100] w-full md:w-[350px] max-h-[60vh] md:max-h-[calc(100vh-140px)] bg-[#1e293b]/95 border-t md:border border-gray-700 rounded-t-2xl md:rounded-lg shadow-2xl flex-col pointer-events-auto overflow-hidden">
             <div class="p-3 border-b border-gray-700 bg-gray-800 flex justify-between items-center">
                 <h2 class="text-xs font-bold text-white flex items-center">
                     <i class="fa-solid fa-list text-blue-400 mr-2"></i>내 주변 가까운 ATM 목록
                     <span id="visible-count" class="ml-2 bg-blue-600 text-[10px] px-1.5 py-0.5 rounded-full">0</span>
                 </h2>
-                <button onclick="loadDbAtms()" class="text-[10px] bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-gray-300 border border-gray-600 transition flex items-center">
-                    <i class="fa-solid fa-rotate-right mr-1"></i>DB 동기화
-                </button>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="loadDbAtms()" class="text-[10px] bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-gray-300 border border-gray-600 transition flex items-center">
+                        <i class="fa-solid fa-rotate-right mr-1"></i>DB 동기화
+                    </button>
+                    <button onclick="toggleMobileList(false)" class="md:hidden text-xs bg-gray-700 hover:bg-gray-600 px-2.5 py-1 rounded text-white font-bold">
+                        닫기
+                    </button>
+                </div>
             </div>
             <div id="list-container" class="flex-1 overflow-y-auto p-2 flex flex-col gap-2 custom-scroll bg-[#0f172a]"></div>
         </div>
@@ -238,14 +258,13 @@
         let markersById = {};
 
         const map = L.map('map', { zoomControl: false }).setView([CITIES.tokyo.lat, CITIES.tokyo.lng], CITIES.tokyo.zoom);
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        L.control.zoom({ position: 'topright' }).addTo(map);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap | FeeFree ATM'
         }).addTo(map);
 
         const markersLayer = L.layerGroup().addTo(map);
 
-        // XSS 및 따옴표 깨짐 원천 방지
         function escapeHtml(str) {
             return String(str ?? '')
                 .replace(/&/g, '&amp;')
@@ -253,6 +272,20 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
+        }
+
+        function toggleMobileList(show) {
+            const panel = document.getElementById('atm-list-panel');
+            const bar = document.getElementById('mobile-bottom-bar');
+            if (show) {
+                panel.classList.remove('hidden');
+                panel.classList.add('flex');
+                bar.classList.add('hidden');
+            } else {
+                panel.classList.add('hidden');
+                panel.classList.remove('flex');
+                bar.classList.remove('hidden');
+            }
         }
 
         // --- 알림 기능 ---
@@ -308,11 +341,11 @@
 
         function highlightCityBtn(cityKey) {
             document.querySelectorAll('.city-btn').forEach(b => {
-                b.className = "city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap";
+                b.className = "city-btn px-2.5 md:px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap flex-shrink-0";
             });
             const active = document.getElementById(`city-${cityKey}`);
             if (active) {
-                active.className = "city-btn px-3 py-1 bg-blue-600 text-white font-bold rounded text-xs transition whitespace-nowrap";
+                active.className = "city-btn px-2.5 md:px-3 py-1 bg-blue-600 text-white font-bold rounded text-xs transition whitespace-nowrap flex-shrink-0";
             }
         }
 
@@ -352,18 +385,25 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
-        // --- 백엔드 프록시 기반 OSM 자동 수집 (병렬 Overpass + Photon + Nominatim 3중 백업 + DB 저장) ---
+        // --- 백엔드 프록시 기반 OSM 자동 수집 ---
         async function fetchOSMData() {
             const bounds = map.getBounds();
             const center = map.getCenter();
             const btn = document.getElementById('osm-fetch-btn');
+            const mBtn = document.getElementById('mobile-osm-btn');
             const statusEl = document.getElementById('osm-status');
+            const mStatusEl = document.getElementById('mobile-osm-status');
             const originalText = btn.innerHTML;
+            const mOriginalText = mBtn.innerHTML;
 
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>서버에서 ATM 수집중...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>수집중...';
+            mBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>수집중...';
             btn.disabled = true;
+            mBtn.disabled = true;
             statusEl.classList.remove('hidden');
+            mStatusEl.classList.remove('hidden');
             statusEl.textContent = "서버가 OSM 데이터를 병렬 조회·DB 저장 중입니다...";
+            mStatusEl.textContent = "주변 ATM 실시간 수집 중...";
 
             try {
                 const res = await fetch('/api/osm/collect', {
@@ -378,34 +418,40 @@
                         centerLng: center.lng
                     })
                 });
-                if (res.status === 401) {
-                    window.location.href = '/login';
-                    return;
-                }
+                if (res.status === 401) { window.location.href = '/login'; return; }
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || "수집 실패");
 
                 allATMs = data.atms || allATMs;
+                let msg = "";
                 if (data.added > 0) {
-                    statusEl.textContent = `✅ ${data.source}: 신규 ${data.added}개 DB 저장 (총 ${data.total}개)`;
+                    msg = `✅ ${data.source}: 신규 ${data.added}개 DB 저장 (총 ${data.total}개)`;
                 } else if (data.fetched > 0) {
-                    statusEl.textContent = `✅ ${data.source}: ${data.fetched}개 확인 (모두 DB에 이미 저장됨)`;
+                    msg = `✅ ${data.source}: ${data.fetched}개 확인 (이미 저장됨)`;
                 } else {
-                    statusEl.textContent = `ℹ️ 현재 화면 영역에 등록된 OSM ATM이 없습니다. 지도를 약간 축소해 보세요.`;
+                    msg = `ℹ️ 현재 영역에 추가할 ATM이 없습니다.`;
                 }
+                statusEl.textContent = msg;
+                mStatusEl.textContent = msg;
+                setTimeout(() => mStatusEl.classList.add('hidden'), 3500);
                 applyFilters();
             } catch (error) {
-                statusEl.textContent = "⚠️ 서버 통신 중 오류가 발생했습니다. 잠시 후 다시 눌러주세요.";
+                const errMsg = "⚠️ 서버 통신 오류. 잠시 후 다시 눌러주세요.";
+                statusEl.textContent = errMsg;
+                mStatusEl.textContent = errMsg;
+                setTimeout(() => mStatusEl.classList.add('hidden'), 3500);
             } finally {
                 btn.innerHTML = originalText;
+                mBtn.innerHTML = mOriginalText;
                 btn.disabled = false;
+                mBtn.disabled = false;
             }
         }
 
         function setFeeFilter(type) {
             currentFeeFilter = type;
-            const activeClass = "px-3 py-1 bg-gray-600 text-white text-xs font-bold transition whitespace-nowrap";
-            const inactiveClass = "px-3 py-1 hover:bg-gray-700 text-xs transition flex items-center border-l border-gray-700 whitespace-nowrap";
+            const activeClass = "px-2.5 md:px-3 py-1 bg-gray-600 text-white text-xs font-bold transition whitespace-nowrap";
+            const inactiveClass = "px-2.5 md:px-3 py-1 hover:bg-gray-700 text-xs transition flex items-center border-l border-gray-700 whitespace-nowrap";
             document.getElementById('btn-filter-ALL').className = type === 'ALL' ? activeClass : inactiveClass;
             document.getElementById('btn-filter-FREE').className = type === 'FREE' ? activeClass + " border-l border-gray-700" : inactiveClass;
             document.getElementById('btn-filter-TRAVEL').className = type === 'TRAVEL' ? activeClass + " border-l border-gray-700" : inactiveClass;
@@ -466,8 +512,8 @@
                 });
 
             const freeCount = inAreaATMs.filter(a => a.feeType === 'FREE').length;
-            document.getElementById('btn-filter-ALL').textContent = `전체보기 (${inAreaATMs.length})`;
-            document.getElementById('btn-filter-FREE').innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 mr-1.5"></span>무료만 (${freeCount})`;
+            document.getElementById('btn-filter-ALL').textContent = `전체 (${inAreaATMs.length})`;
+            document.getElementById('btn-filter-FREE').innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 mr-1"></span>무료 (${freeCount})`;
 
             const sortedATMs = inAreaATMs
                 .filter(atm => {
@@ -478,12 +524,13 @@
                 .sort((a, b) => a.distance - b.distance);
 
             document.getElementById('visible-count').textContent = sortedATMs.length;
+            document.getElementById('mobile-visible-count').textContent = sortedATMs.length;
 
             if (sortedATMs.length === 0) {
                 listContainer.innerHTML = `
                     <div class="p-6 text-center text-xs text-gray-400 space-y-2">
                         <div>현재 조건에 맞는 ATM이 없습니다.</div>
-                        <div class="text-[11px] text-blue-400">좌측 [현재 화면 기준 ATM 전수 수집] 버튼을 눌러보세요!</div>
+                        <div class="text-[11px] text-blue-400">[주변 ATM 수집] 버튼을 눌러보세요!</div>
                     </div>`;
                 isRerendering = false;
                 return;
@@ -536,8 +583,8 @@
 
                 card.addEventListener('click', () => {
                     activePopupAtmId = atm.id;
+                    if (window.innerWidth < 768) toggleMobileList(false);
                     map.flyTo([atm.lat, atm.lng], 16, { duration: 0.6 });
-                    // flyTo 이동 완료 후 팝업이 닫히지 않도록 moveend 시점에 자동으로 다시 열어줌
                     if (markersById[atm.id]) markersById[atm.id].openPopup();
                 });
                 card.querySelector('.detail-btn').addEventListener('click', (e) => { e.stopPropagation(); openDetail(atm); });
