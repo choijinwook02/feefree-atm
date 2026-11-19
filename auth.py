@@ -1,8 +1,7 @@
-import sqlite3
 from functools import wraps
 from flask import session, redirect, url_for, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
-from db import get_connection, add_notification
+from db import get_connection, add_notification, is_postgres, INTEGRITY_ERRORS
 
 
 def register_user(username, password, nickname, preferred_card="트래블로그", db_path=None):
@@ -13,17 +12,28 @@ def register_user(username, password, nickname, preferred_card="트래블로그"
     if len(password) < 4:
         return False, "비밀번호는 4자 이상 입력해주세요."
 
+    pg = is_postgres(db_path)
     conn = get_connection(db_path)
     try:
         cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO users (username, password_hash, nickname, preferred_card, role)
-            VALUES (?, ?, ?, ?, 'user')
-            """,
-            (username, generate_password_hash(password), nickname, preferred_card or "트래블로그"),
-        )
-        new_uid = cur.lastrowid
+        if pg:
+            cur.execute(
+                """
+                INSERT INTO users (username, password_hash, nickname, preferred_card, role)
+                VALUES (?, ?, ?, ?, 'user') RETURNING id
+                """,
+                (username, generate_password_hash(password), nickname, preferred_card or "트래블로그"),
+            )
+            new_uid = cur.fetchone()["id"]
+        else:
+            cur.execute(
+                """
+                INSERT INTO users (username, password_hash, nickname, preferred_card, role)
+                VALUES (?, ?, ?, ?, 'user')
+                """,
+                (username, generate_password_hash(password), nickname, preferred_card or "트래블로그"),
+            )
+            new_uid = cur.lastrowid
         conn.commit()
         conn.close()
         add_notification(
@@ -33,10 +43,18 @@ def register_user(username, password, nickname, preferred_card="트래블로그"
             db_path=db_path,
         )
         return True, "회원가입이 완료되었습니다."
-    except sqlite3.IntegrityError:
+    except INTEGRITY_ERRORS:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         conn.close()
         return False, "이미 사용 중인 아이디입니다."
     except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         conn.close()
         return False, "회원가입 처리 중 오류가 발생했습니다."
 
