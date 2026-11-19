@@ -103,13 +103,13 @@
     <script>
         const m = L.map('mini-map').setView([{{ atm.lat }}, {{ atm.lng }}], 16);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(m);
-        L.marker([{{ atm.lat }}, {{ atm.lng }}]).addTo(m).bindPopup("{{ atm.name }}").openPopup();
+        L.marker([{{ atm.lat }}, {{ atm.lng }}]).addTo(m).bindPopup({{ atm.name | tojson }}).openPopup();
 
         async function verifyHere() {
             const res = await fetch('/api/atms/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: "{{ atm.id }}" })
+                body: JSON.stringify({ id: {{ atm.id | tojson }} })
             });
             if (res.ok) {
                 const data = await res.json();

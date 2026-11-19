@@ -88,22 +88,23 @@
             <span class="text-xs font-bold text-yellow-500 flex items-center mr-1 whitespace-nowrap">
                 <i class="fa-solid fa-graduation-cap mr-1"></i>수업 시연 모드:
             </span>
-            <button onclick="moveToCity('tokyo')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">도쿄</button>
-            <button onclick="moveToCity('danang')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">다낭</button>
-            <button onclick="moveToCity('bangkok')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">방콕</button>
-            <button onclick="moveToCity('taipei')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">타이베이</button>
-            <button onclick="moveToCity('paris')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">파리</button>
-            <button onclick="moveToCity('pyeongtaek')" class="px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">평택</button>
+            <button id="city-tokyo" onclick="moveToCity('tokyo')" class="city-btn px-3 py-1 bg-blue-600 text-white font-bold rounded text-xs transition whitespace-nowrap">도쿄</button>
+            <button id="city-danang" onclick="moveToCity('danang')" class="city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">다낭</button>
+            <button id="city-bangkok" onclick="moveToCity('bangkok')" class="city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">방콕</button>
+            <button id="city-taipei" onclick="moveToCity('taipei')" class="city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">타이베이</button>
+            <button id="city-paris" onclick="moveToCity('paris')" class="city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">파리</button>
+            <button id="city-pyeongtaek" onclick="moveToCity('pyeongtaek')" class="city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap">평택</button>
         </div>
 
         <div class="flex items-center gap-3 flex-shrink-0">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-compass text-gray-400 text-sm"></i>
                 <select id="radius-select" onchange="applyFilters()" class="bg-[#0f172a] border border-gray-600 text-xs rounded px-2 py-1 outline-none text-white">
-                    <option value="99999">반경: 화면 전체 (기본)</option>
-                    <option value="15">반경: 15km 이내</option>
+                    <option value="bounds">반경: 현재 지도 화면 내</option>
+                    <option value="15" selected>반경: 15km 이내 (기본)</option>
                     <option value="5">반경: 5km 이내</option>
                     <option value="1">반경: 1km 이내</option>
+                    <option value="99999">반경: 전 세계 전체</option>
                 </select>
             </div>
             <div class="flex bg-[#0f172a] rounded border border-gray-700 overflow-hidden">
@@ -128,16 +129,16 @@
                 <h2 class="text-xs font-bold flex items-center">
                     <i class="fa-solid fa-satellite-dish text-blue-400 mr-2"></i>실시간 OSM 자동 수집
                 </h2>
-                <span class="text-[10px] bg-blue-900/60 border border-blue-700/50 px-1.5 py-0.5 rounded text-blue-300">최대 250개</span>
+                <span class="text-[10px] bg-blue-900/60 border border-blue-700/50 px-1.5 py-0.5 rounded text-blue-300">서버 DB 연동</span>
             </div>
             <div class="p-3.5 flex flex-col gap-2.5">
                 <p class="text-[11px] text-gray-400 leading-relaxed">
-                    현재 보고 있는 지도 영역의 은행 및 편의점(세븐일레븐 등) ATM을 실시간으로 수집합니다.
+                    현재 보고 있는 지도 영역의 은행 및 편의점(세븐일레븐 등) ATM을 백엔드 서버에서 실시간 수집해 DB에 저장합니다.
                 </p>
                 <button id="osm-fetch-btn" onclick="fetchOSMData()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 border border-blue-500 rounded text-xs font-bold transition flex justify-center items-center shadow">
                     <i class="fa-solid fa-crosshairs mr-2"></i>현재 화면 기준 ATM 전수 수집
                 </button>
-                <div id="osm-status" class="text-[10px] text-gray-400 text-center hidden"></div>
+                <div id="osm-status" class="text-[10px] text-gray-300 text-center hidden"></div>
             </div>
         </div>
 
@@ -232,6 +233,9 @@
         let myCurrentLat = CITIES.tokyo.lat;
         let myCurrentLng = CITIES.tokyo.lng;
         let myLocationMarker = null;
+        let activePopupAtmId = null;
+        let isRerendering = false;
+        let markersById = {};
 
         const map = L.map('map', { zoomControl: false }).setView([CITIES.tokyo.lat, CITIES.tokyo.lng], CITIES.tokyo.zoom);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -240,6 +244,16 @@
         }).addTo(map);
 
         const markersLayer = L.layerGroup().addTo(map);
+
+        // XSS 및 따옴표 깨짐 원천 방지
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         // --- 알림 기능 ---
         async function loadNotifications() {
@@ -262,11 +276,11 @@
                 list.innerHTML = data.items.map(n => `
                     <div class="p-3 ${n.is_read ? 'opacity-60' : 'bg-blue-900/20'}">
                         <div class="flex justify-between items-center mb-1">
-                            <span class="text-xs font-bold text-white">${n.title}</span>
+                            <span class="text-xs font-bold text-white">${escapeHtml(n.title)}</span>
                             ${!n.is_read ? '<span class="w-2 h-2 rounded-full bg-blue-400"></span>' : ''}
                         </div>
-                        <p class="text-[11px] text-gray-300 leading-snug">${n.message}</p>
-                        <div class="text-[9px] text-gray-500 mt-1">${n.created_at}</div>
+                        <p class="text-[11px] text-gray-300 leading-snug">${escapeHtml(n.message)}</p>
+                        <div class="text-[9px] text-gray-500 mt-1">${escapeHtml(n.created_at)}</div>
                     </div>
                 `).join('');
             } catch (e) {}
@@ -287,16 +301,26 @@
             try {
                 const res = await fetch('/api/atms');
                 if (res.status === 401) { window.location.href = '/login'; return; }
-                const dbAtms = await res.json();
-                const osmOnly = allATMs.filter(a => String(a.id).startsWith('osm_') && !dbAtms.find(d => d.id === a.id));
-                allATMs = [...dbAtms, ...osmOnly];
+                allATMs = await res.json();
                 applyFilters();
             } catch (e) { console.error(e); }
+        }
+
+        function highlightCityBtn(cityKey) {
+            document.querySelectorAll('.city-btn').forEach(b => {
+                b.className = "city-btn px-3 py-1 hover:bg-gray-700 rounded text-xs transition whitespace-nowrap";
+            });
+            const active = document.getElementById(`city-${cityKey}`);
+            if (active) {
+                active.className = "city-btn px-3 py-1 bg-blue-600 text-white font-bold rounded text-xs transition whitespace-nowrap";
+            }
         }
 
         function moveToCity(cityKey) {
             const city = CITIES[cityKey];
             if (city) {
+                activePopupAtmId = null;
+                highlightCityBtn(cityKey);
                 map.setView([city.lat, city.lng], city.zoom);
                 myCurrentLat = city.lat;
                 myCurrentLng = city.lng;
@@ -307,6 +331,8 @@
         function moveToMyGPS() {
             if (!navigator.geolocation) return alert("브라우저에서 GPS를 지원하지 않습니다.");
             navigator.geolocation.getCurrentPosition((pos) => {
+                activePopupAtmId = null;
+                highlightCityBtn('');
                 myCurrentLat = pos.coords.latitude;
                 myCurrentLng = pos.coords.longitude;
                 map.setView([myCurrentLat, myCurrentLng], 15);
@@ -326,93 +352,50 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
-        // --- 고속 OSM Overpass API 수집 (3개 서버 동시 요청 + 한국 은행/일본 편의점 포함) ---
+        // --- 백엔드 프록시 기반 OSM 자동 수집 (병렬 Overpass + Photon + Nominatim 3중 백업 + DB 저장) ---
         async function fetchOSMData() {
             const bounds = map.getBounds();
-            const bbox = `${bounds.getSouth().toFixed(5)},${bounds.getWest().toFixed(5)},${bounds.getNorth().toFixed(5)},${bounds.getEast().toFixed(5)}`;
-            const query = `[out:json][timeout:15];(node["amenity"="atm"](${bbox});node["atm"="yes"](${bbox});node["amenity"="bank"](${bbox});way["amenity"="bank"](${bbox}););out center 250;`;
-
-            const endpoints = [
-                "https://overpass-api.de/api/interpreter",
-                "https://overpass.kumi.systems/api/interpreter",
-                "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
-            ];
-
+            const center = map.getCenter();
             const btn = document.getElementById('osm-fetch-btn');
             const statusEl = document.getElementById('osm-status');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>ATM 실시간 수집중...';
+
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>서버에서 ATM 수집중...';
             btn.disabled = true;
             statusEl.classList.remove('hidden');
-            statusEl.textContent = "3개 OSM 미러 서버에 동시 요청 중...";
-
-            const controllers = endpoints.map(() => new AbortController());
-            const requests = endpoints.map((base, idx) => {
-                const timer = setTimeout(() => controllers[idx].abort(), 12000);
-                return fetch(`${base}?data=${encodeURIComponent(query)}`, {
-                    signal: controllers[idx].signal
-                })
-                .then(res => {
-                    clearTimeout(timer);
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return res.json();
-                })
-                .then(json => {
-                    if (!json || !Array.isArray(json.elements)) throw new Error("데이터 형식 오류");
-                    return json;
-                })
-                .catch(err => {
-                    clearTimeout(timer);
-                    throw err;
-                });
-            });
+            statusEl.textContent = "서버가 OSM 데이터를 병렬 조회·DB 저장 중입니다...";
 
             try {
-                const data = await Promise.any(requests);
-                controllers.forEach(c => c.abort());
-
-                let newCount = 0;
-                data.elements.forEach(el => {
-                    const lat = el.lat ?? el.center?.lat;
-                    const lng = el.lon ?? el.center?.lon;
-                    if (!lat || !lng) return;
-
-                    const osmId = `osm_${el.type}_${el.id}`;
-                    if (!allATMs.find(a => a.id === osmId)) {
-                        const tags = el.tags || {};
-                        let atmName = tags.name || tags["name:ko"] || tags.operator || tags.brand || "현지 ATM / 은행";
-                        let feeType = "MODERATE";
-                        let feeAmount = "수수료 확인 필요";
-                        let tip = tags.amenity === "bank" ? "OSM 은행 지점 내 ATM" : "OSM 실시간 수집 데이터";
-
-                        const lower = atmName.toLowerCase();
-                        if (
-                            lower.includes('seven') || atmName.includes('セブン') ||
-                            lower.includes('aeon') || atmName.includes('イオン') ||
-                            atmName.includes('하나은행') || atmName.includes('국민은행') ||
-                            atmName.includes('신한은행') || atmName.includes('우리은행') ||
-                            atmName.includes('농협')
-                        ) {
-                            if (atmName.includes('セブン') || lower.includes('seven')) atmName = "세븐뱅크 ATM";
-                            feeType = "FREE";
-                            feeAmount = "무료 (제휴/자행)";
-                            tip = "트래블카드 또는 제휴 은행 무료 인출 가능";
-                        }
-
-                        allATMs.push({
-                            id: osmId, lat, lng, name: atmName,
-                            feeType, feeAmount, tip, verified: 0, reporter: "OSM"
-                        });
-                        newCount++;
-                    }
+                const res = await fetch('/api/osm/collect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        south: bounds.getSouth(),
+                        west: bounds.getWest(),
+                        north: bounds.getNorth(),
+                        east: bounds.getEast(),
+                        centerLat: center.lat,
+                        centerLng: center.lng
+                    })
                 });
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "수집 실패");
 
-                statusEl.textContent = newCount > 0
-                    ? `✅ 신규 ${newCount}개 수집 완료 (총 ${allATMs.length}개)`
-                    : `✅ 수집 완료 (현재 화면에 새로 추가할 ATM 없음)`;
+                allATMs = data.atms || allATMs;
+                if (data.added > 0) {
+                    statusEl.textContent = `✅ ${data.source}: 신규 ${data.added}개 DB 저장 (총 ${data.total}개)`;
+                } else if (data.fetched > 0) {
+                    statusEl.textContent = `✅ ${data.source}: ${data.fetched}개 확인 (모두 DB에 이미 저장됨)`;
+                } else {
+                    statusEl.textContent = `ℹ️ 현재 화면 영역에 등록된 OSM ATM이 없습니다. 지도를 약간 축소해 보세요.`;
+                }
                 applyFilters();
             } catch (error) {
-                statusEl.textContent = "⚠️ 현재 OSM 서버 전체가 혼잡합니다. 지도를 한 단계 확대 후 다시 눌러주세요.";
+                statusEl.textContent = "⚠️ 서버 통신 중 오류가 발생했습니다. 잠시 후 다시 눌러주세요.";
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -464,18 +447,30 @@
         }
 
         function renderATMs() {
+            isRerendering = true;
             markersLayer.clearLayers();
+            markersById = {};
             const listContainer = document.getElementById('list-container');
             listContainer.innerHTML = '';
 
-            const radius = parseFloat(document.getElementById('radius-select').value);
+            const radiusVal = document.getElementById('radius-select').value;
+            const bounds = map.getBounds();
             const centerLat = map.getCenter().lat;
             const centerLng = map.getCenter().lng;
 
-            const sortedATMs = allATMs
+            const inAreaATMs = allATMs
                 .map(atm => ({ ...atm, distance: calcDist(centerLat, centerLng, atm.lat, atm.lng) }))
                 .filter(atm => {
-                    if (atm.distance > radius) return false;
+                    if (radiusVal === 'bounds') return bounds.contains([atm.lat, atm.lng]);
+                    return atm.distance <= parseFloat(radiusVal);
+                });
+
+            const freeCount = inAreaATMs.filter(a => a.feeType === 'FREE').length;
+            document.getElementById('btn-filter-ALL').textContent = `전체보기 (${inAreaATMs.length})`;
+            document.getElementById('btn-filter-FREE').innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 mr-1.5"></span>무료만 (${freeCount})`;
+
+            const sortedATMs = inAreaATMs
+                .filter(atm => {
                     if (currentFeeFilter === 'FREE' && atm.feeType !== 'FREE') return false;
                     if (currentFeeFilter === 'TRAVEL' && !String(atm.tip).includes('트래블')) return false;
                     return true;
@@ -483,19 +478,36 @@
                 .sort((a, b) => a.distance - b.distance);
 
             document.getElementById('visible-count').textContent = sortedATMs.length;
-            document.getElementById('btn-filter-ALL').textContent = `전체보기 (${allATMs.length})`;
+
+            if (sortedATMs.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="p-6 text-center text-xs text-gray-400 space-y-2">
+                        <div>현재 조건에 맞는 ATM이 없습니다.</div>
+                        <div class="text-[11px] text-blue-400">좌측 [현재 화면 기준 ATM 전수 수집] 버튼을 눌러보세요!</div>
+                    </div>`;
+                isRerendering = false;
+                return;
+            }
 
             sortedATMs.forEach((atm, idx) => {
                 const icon = L.divIcon({ html: getIconHTML(atm.feeType), className: '', iconSize: [28, 28] });
                 const marker = L.marker([atm.lat, atm.lng], { icon }).addTo(markersLayer);
-                const badgeHtml = atm.feeType === 'FREE' ? '<span class="bg-green-100 text-green-700 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">무료</span>' : '';
+                markersById[atm.id] = marker;
+
+                const badgeHtml = atm.feeType === 'FREE'
+                    ? '<span class="bg-green-100 text-green-700 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">무료</span>'
+                    : '';
                 marker.bindPopup(`
                     <div class="text-center font-sans p-1">
-                        <div class="font-bold text-[13px] text-gray-800 mb-1">${atm.name} ${badgeHtml}</div>
-                        <div class="text-xs font-bold text-gray-600 mb-1">수수료: ${atm.feeAmount}</div>
-                        <div class="text-[10px] bg-gray-100 p-1.5 rounded text-gray-600">${atm.tip}</div>
+                        <div class="font-bold text-[13px] text-gray-800 mb-1">${escapeHtml(atm.name)} ${badgeHtml}</div>
+                        <div class="text-xs font-bold text-gray-600 mb-1">수수료: ${escapeHtml(atm.feeAmount)}</div>
+                        <div class="text-[10px] bg-gray-100 p-1.5 rounded text-gray-600">${escapeHtml(atm.tip)}</div>
                     </div>
                 `);
+                marker.on('click', () => { activePopupAtmId = atm.id; });
+                marker.on('popupclose', () => {
+                    if (!isRerendering && activePopupAtmId === atm.id) activePopupAtmId = null;
+                });
 
                 if (idx >= 120) return;
                 const distLabel = atm.distance < 1 ? `${(atm.distance * 1000).toFixed(0)}m` : `${atm.distance.toFixed(1)}km`;
@@ -506,13 +518,13 @@
                     <div class="flex justify-between items-start">
                         <div class="flex flex-col gap-0.5">
                             <span class="text-[10px] text-blue-400 font-bold border border-blue-800 bg-blue-900/30 px-1.5 py-0.5 rounded self-start">기준점에서 ${distLabel}</span>
-                            <span class="font-bold text-gray-100 text-xs mt-1 leading-tight">${atm.name}</span>
+                            <span class="font-bold text-gray-100 text-xs mt-1 leading-tight">${escapeHtml(atm.name)}</span>
                         </div>
-                        <span class="text-[11px] font-bold text-gray-300 bg-gray-800 px-1.5 py-1 rounded border border-gray-600 ml-2 whitespace-nowrap">${atm.feeAmount}</span>
+                        <span class="text-[11px] font-bold text-gray-300 bg-gray-800 px-1.5 py-1 rounded border border-gray-600 ml-2 whitespace-nowrap">${escapeHtml(atm.feeAmount)}</span>
                     </div>
-                    <div class="text-[10px] text-gray-400 mt-1 pl-2 border-l border-gray-600">${atm.tip}</div>
+                    <div class="text-[10px] text-gray-400 mt-1 pl-2 border-l border-gray-600">${escapeHtml(atm.tip)}</div>
                     <div class="flex justify-between items-center mt-1.5 pt-2 border-t border-gray-700 gap-1">
-                        <span class="text-[9px] text-gray-400 truncate"><i class="fa-solid fa-user-check mr-1"></i>${atm.verified || 0}명 · ${atm.reporter || '시스템'}</span>
+                        <span class="text-[9px] text-gray-400 truncate"><i class="fa-solid fa-user-check mr-1"></i>${atm.verified || 0}명 · ${escapeHtml(atm.reporter || '시스템')}</span>
                         <div class="flex gap-1">
                             <button class="detail-btn text-[9px] bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-2 py-1 rounded border border-blue-700/60 transition">상세</button>
                             <button class="verify-btn text-[9px] bg-gray-800 hover:bg-emerald-600 text-gray-200 px-2 py-1 rounded border border-gray-600 transition flex items-center">
@@ -523,13 +535,20 @@
                 `;
 
                 card.addEventListener('click', () => {
-                    map.flyTo([atm.lat, atm.lng], 16);
-                    setTimeout(() => marker.openPopup(), 350);
+                    activePopupAtmId = atm.id;
+                    map.flyTo([atm.lat, atm.lng], 16, { duration: 0.6 });
+                    // flyTo 이동 완료 후 팝업이 닫히지 않도록 moveend 시점에 자동으로 다시 열어줌
+                    if (markersById[atm.id]) markersById[atm.id].openPopup();
                 });
                 card.querySelector('.detail-btn').addEventListener('click', (e) => { e.stopPropagation(); openDetail(atm); });
                 card.querySelector('.verify-btn').addEventListener('click', (e) => { e.stopPropagation(); verifyATM(atm); });
                 listContainer.appendChild(card);
             });
+
+            isRerendering = false;
+            if (activePopupAtmId && markersById[activePopupAtmId]) {
+                markersById[activePopupAtmId].openPopup();
+            }
         }
 
         function openReportModal() { document.getElementById('report-modal').style.display = 'flex'; }
@@ -557,6 +576,7 @@
                 if (!res.ok) throw new Error();
                 const savedAtm = await res.json();
                 allATMs.unshift(savedAtm);
+                activePopupAtmId = savedAtm.id;
                 closeReportModal();
                 map.setView([targetLat, targetLng], 16);
                 applyFilters();
