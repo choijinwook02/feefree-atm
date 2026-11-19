@@ -24,7 +24,7 @@
 </head>
 <body class="flex flex-col h-screen w-screen bg-[#0f172a]">
 
-    <!-- 상단바 1열 (오리지널 다크 네이비 디자인 유지 + 알림/마이페이지/관리자 추가) -->
+    <!-- 상단바 1열 -->
     <header class="w-full bg-[#0f172a] text-white border-b border-gray-700 flex-shrink-0 z-[2000]">
         <div class="flex justify-between items-center px-4 py-2 gap-2 flex-wrap">
             <div class="flex items-center gap-3">
@@ -326,21 +326,16 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
-        // --- 안정화된 OSM Overpass API 수집 (최대 250개 + 2중 미러) ---
+        // --- 고속 OSM Overpass API 수집 (3개 서버 동시 요청 + 한국 은행/일본 편의점 포함) ---
         async function fetchOSMData() {
             const bounds = map.getBounds();
             const bbox = `${bounds.getSouth().toFixed(5)},${bounds.getWest().toFixed(5)},${bounds.getNorth().toFixed(5)},${bounds.getEast().toFixed(5)}`;
-            const query = `
-                [out:json][timeout:20];
-                (
-                  node["amenity"="atm"](${bbox});
-                  node["atm"="yes"](${bbox});
-                );
-                out body 250;
-            `;
+            const query = `[out:json][timeout:15];(node["amenity"="atm"](${bbox});node["atm"="yes"](${bbox});node["amenity"="bank"](${bbox});way["amenity"="bank"](${bbox}););out center 250;`;
+
             const endpoints = [
                 "https://overpass-api.de/api/interpreter",
-                "https://overpass.kumi.systems/api/interpreter"
+                "https://overpass.kumi.systems/api/interpreter",
+                "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
             ];
 
             const btn = document.getElementById('osm-fetch-btn');
@@ -349,45 +344,75 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>ATM 실시간 수집중...';
             btn.disabled = true;
             statusEl.classList.remove('hidden');
-            statusEl.textContent = "OpenStreetMap 서버에서 데이터를 가져오는 중...";
+            statusEl.textContent = "3개 OSM 미러 서버에 동시 요청 중...";
 
-            let data = null;
-            for (const base of endpoints) {
-                try {
-                    const res = await fetch(`${base}?data=${encodeURIComponent(query)}`);
-                    if (res.ok) { data = await res.json(); break; }
-                } catch (err) {}
-            }
+            const controllers = endpoints.map(() => new AbortController());
+            const requests = endpoints.map((base, idx) => {
+                const timer = setTimeout(() => controllers[idx].abort(), 12000);
+                return fetch(`${base}?data=${encodeURIComponent(query)}`, {
+                    signal: controllers[idx].signal
+                })
+                .then(res => {
+                    clearTimeout(timer);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.json();
+                })
+                .then(json => {
+                    if (!json || !Array.isArray(json.elements)) throw new Error("데이터 형식 오류");
+                    return json;
+                })
+                .catch(err => {
+                    clearTimeout(timer);
+                    throw err;
+                });
+            });
 
             try {
-                if (!data || !data.elements) throw new Error("응답 없음");
+                const data = await Promise.any(requests);
+                controllers.forEach(c => c.abort());
+
                 let newCount = 0;
                 data.elements.forEach(el => {
-                    const osmId = `osm_${el.id}`;
+                    const lat = el.lat ?? el.center?.lat;
+                    const lng = el.lon ?? el.center?.lon;
+                    if (!lat || !lng) return;
+
+                    const osmId = `osm_${el.type}_${el.id}`;
                     if (!allATMs.find(a => a.id === osmId)) {
                         const tags = el.tags || {};
-                        let atmName = tags.name || tags.operator || tags.brand || "현지 ATM (은행/편의점)";
+                        let atmName = tags.name || tags["name:ko"] || tags.operator || tags.brand || "현지 ATM / 은행";
                         let feeType = "MODERATE";
                         let feeAmount = "수수료 확인 필요";
-                        let tip = "OSM 실시간 수집 데이터";
+                        let tip = tags.amenity === "bank" ? "OSM 은행 지점 내 ATM" : "OSM 실시간 수집 데이터";
+
                         const lower = atmName.toLowerCase();
-                        if (lower.includes('seven') || atmName.includes('セブン') || lower.includes('aeon') || atmName.includes('イオン')) {
-                            atmName = (atmName.includes('セブン') || lower.includes('seven')) ? "세븐뱅크 ATM" : atmName;
+                        if (
+                            lower.includes('seven') || atmName.includes('セブン') ||
+                            lower.includes('aeon') || atmName.includes('イオン') ||
+                            atmName.includes('하나은행') || atmName.includes('국민은행') ||
+                            atmName.includes('신한은행') || atmName.includes('우리은행') ||
+                            atmName.includes('농협')
+                        ) {
+                            if (atmName.includes('セブン') || lower.includes('seven')) atmName = "세븐뱅크 ATM";
                             feeType = "FREE";
-                            feeAmount = "무료";
-                            tip = "트래블로그/트래블월렛 수수료 면제 기기";
+                            feeAmount = "무료 (제휴/자행)";
+                            tip = "트래블카드 또는 제휴 은행 무료 인출 가능";
                         }
+
                         allATMs.push({
-                            id: osmId, lat: el.lat, lng: el.lon, name: atmName,
+                            id: osmId, lat, lng, name: atmName,
                             feeType, feeAmount, tip, verified: 0, reporter: "OSM"
                         });
                         newCount++;
                     }
                 });
-                statusEl.textContent = `✅ 신규 ${newCount}개 수집 완료 (총 ${allATMs.length}개 보유)`;
+
+                statusEl.textContent = newCount > 0
+                    ? `✅ 신규 ${newCount}개 수집 완료 (총 ${allATMs.length}개)`
+                    : `✅ 수집 완료 (현재 화면에 새로 추가할 ATM 없음)`;
                 applyFilters();
             } catch (error) {
-                statusEl.textContent = "⚠️ 서버 혼잡: 지도를 조금 확대 후 다시 눌러주세요.";
+                statusEl.textContent = "⚠️ 현재 OSM 서버 전체가 혼잡합니다. 지도를 한 단계 확대 후 다시 눌러주세요.";
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
