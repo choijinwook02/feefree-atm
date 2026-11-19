@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>마이페이지 - FeeFree ATM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body { font-family: 'Pretendard', sans-serif; }</style>
+</head>
+<body class="bg-[#0f172a] text-white min-h-screen">
+    <header class="bg-[#1e293b] border-b border-gray-700 px-6 py-3 flex justify-between items-center">
+        <a href="/" class="text-sm font-bold text-blue-400 hover:text-blue-300 flex items-center">
+            <i class="fa-solid fa-arrow-left mr-2"></i>지도로 돌아가기
+        </a>
+        <div class="flex items-center gap-3 text-xs">
+            {% if user.role == 'admin' %}<a href="/admin" class="text-purple-400 font-bold">관리자 페이지</a>{% endif %}
+            <a href="/logout" class="text-red-400 font-bold">로그아웃</a>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto p-6 space-y-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-extrabold">마이페이지</h1>
+                <p class="text-xs text-gray-400 mt-1">회원 정보 수정, 알림 설정 및 나의 ATM 활동 내역</p>
+            </div>
+            <span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-900/40 text-blue-300 border border-blue-700/50">
+                {{ '관리자' if user.role == 'admin' else '일반 회원' }} · @{{ user.username }}
+            </span>
+        </div>
+
+        {% if msg %}
+        <div class="p-3 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold">{{ msg }}</div>
+        {% endif %}
+        {% if err %}
+        <div class="p-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-300 text-xs font-bold">{{ err }}</div>
+        {% endif %}
+
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- 프로필 수정 -->
+            <div class="bg-[#1e293b] border border-gray-700 rounded-2xl p-5">
+                <h2 class="text-sm font-bold mb-4 flex items-center"><i class="fa-solid fa-user-pen text-blue-400 mr-2"></i>기본 정보 및 알림 설정</h2>
+                <form action="/mypage/update" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">닉네임</label>
+                        <input type="text" name="nickname" value="{{ user.nickname }}" required
+                            class="w-full p-2.5 bg-[#0f172a] border border-gray-600 rounded-lg text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">주 사용 트래블카드</label>
+                        <select name="preferred_card" class="w-full p-2.5 bg-[#0f172a] border border-gray-600 rounded-lg text-xs">
+                            {% for card in ['트래블로그', '트래블월렛', '신한 SOL트래블', '토스뱅크 외화통장', 'KB 트래블러스'] %}
+                            <option value="{{ card }}" {{ 'selected' if user.preferred_card == card else '' }}>{{ card }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                        <input type="checkbox" name="push_enabled" {{ 'checked' if user.push_enabled else '' }} class="rounded">
+                        앱 내 알림 및 브라우저 푸시 알림 수신 동의
+                    </label>
+                    <div class="flex gap-2">
+                        <button type="submit" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold transition">저장하기</button>
+                        <button type="button" onclick="requestBrowserPush()" class="px-3 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-bold transition">브라우저 푸시 허용</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 비밀번호 변경 -->
+            <div class="bg-[#1e293b] border border-gray-700 rounded-2xl p-5">
+                <h2 class="text-sm font-bold mb-4 flex items-center"><i class="fa-solid fa-key text-yellow-400 mr-2"></i>비밀번호 변경</h2>
+                <form action="/mypage/password" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">현재 비밀번호</label>
+                        <input type="password" name="current_password" required class="w-full p-2.5 bg-[#0f172a] border border-gray-600 rounded-lg text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">새 비밀번호 (4자 이상)</label>
+                        <input type="password" name="new_password" required class="w-full p-2.5 bg-[#0f172a] border border-gray-600 rounded-lg text-xs">
+                    </div>
+                    <button type="submit" class="w-full py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-bold transition">비밀번호 변경</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- 즐겨찾기한 ATM -->
+            <div class="bg-[#1e293b] border border-gray-700 rounded-2xl p-5">
+                <h2 class="text-sm font-bold mb-4 flex items-center"><i class="fa-solid fa-star text-yellow-400 mr-2"></i>즐겨찾기한 ATM ({{ bookmarks|length }})</h2>
+                <div class="space-y-2.5">
+                    {% for a in bookmarks %}
+                    <a href="/atm/{{ a.id }}" class="block p-3 bg-[#0f172a] rounded-xl border border-gray-700 hover:border-blue-500 transition">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold">{{ a.name }}</span>
+                            <span class="text-[11px] text-green-400 font-bold">{{ a.feeAmount }}</span>
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-1">{{ a.tip }}</p>
+                    </a>
+                    {% else %}
+                    <p class="text-xs text-gray-500 text-center py-6">즐겨찾기한 ATM이 없습니다.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 내가 제보한 ATM -->
+            <div class="bg-[#1e293b] border border-gray-700 rounded-2xl p-5">
+                <h2 class="text-sm font-bold mb-4 flex items-center"><i class="fa-solid fa-bullhorn text-emerald-400 mr-2"></i>내가 제보한 ATM ({{ reported|length }})</h2>
+                <div class="space-y-2.5">
+                    {% for a in reported %}
+                    <div class="p-3 bg-[#0f172a] rounded-xl border border-gray-700 flex justify-between items-center gap-2">
+                        <a href="/atm/{{ a.id }}" class="flex-1">
+                            <div class="text-xs font-bold hover:text-blue-400">{{ a.name }}</div>
+                            <div class="text-[10px] text-gray-400 mt-0.5">{{ a.feeAmount }} · 검증 {{ a.verified }}회</div>
+                        </a>
+                        <form action="/mypage/atm/{{ a.id }}/delete" method="POST" onsubmit="return confirm('삭제하시겠습니까?');">
+                            <button type="submit" class="px-2.5 py-1 bg-red-900/50 hover:bg-red-700 text-red-200 rounded text-[10px] font-bold">삭제</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <p class="text-xs text-gray-500 text-center py-6">직접 제보한 ATM이 없습니다.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function requestBrowserPush() {
+            if (!("Notification" in window)) return alert("이 브라우저는 푸시 알림을 지원하지 않습니다.");
+            Notification.requestPermission().then(perm => {
+                if (perm === "granted") {
+                    new Notification("FeeFree ATM 알림 활성화", { body: "이제 새 제보 및 공지 알림을 받을 수 있습니다." });
+                } else {
+                    alert("브라우저 알림 권한이 거부되었습니다.");
+                }
+            });
+        }
+    </script>
+</body>
+</html>

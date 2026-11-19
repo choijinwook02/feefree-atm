@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 대시보드 - FeeFree ATM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body { font-family: 'Pretendard', sans-serif; }</style>
+</head>
+<body class="bg-[#0f172a] text-white min-h-screen">
+    <header class="bg-[#1e293b] border-b border-gray-700 px-6 py-3 flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <a href="/" class="text-sm font-bold text-blue-400 hover:text-blue-300 flex items-center">
+                <i class="fa-solid fa-arrow-left mr-2"></i>지도로 돌아가기
+            </a>
+            <span class="text-sm font-extrabold text-purple-400"><i class="fa-solid fa-shield-halved mr-1.5"></i>관리자 시스템</span>
+        </div>
+        <a href="/logout" class="text-xs text-red-400 font-bold">로그아웃</a>
+    </header>
+
+    <main class="max-w-6xl mx-auto p-6 space-y-6">
+        {% if msg %}
+        <div class="p-3 rounded-lg bg-blue-500/20 border border-blue-500/40 text-blue-200 text-xs font-bold">{{ msg }}</div>
+        {% endif %}
+
+        <!-- KPI 통계 카드 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-[#1e293b] border border-gray-700 rounded-xl p-4">
+                <div class="text-xs text-gray-400">총 가입 회원</div>
+                <div class="text-2xl font-black text-blue-400 mt-1">{{ stats.total_users }}명</div>
+            </div>
+            <div class="bg-[#1e293b] border border-gray-700 rounded-xl p-4">
+                <div class="text-xs text-gray-400">DB 등록 ATM</div>
+                <div class="text-2xl font-black text-emerald-400 mt-1">{{ stats.total_atms }}곳</div>
+            </div>
+            <div class="bg-[#1e293b] border border-gray-700 rounded-xl p-4">
+                <div class="text-xs text-gray-400">누적 검증 투표</div>
+                <div class="text-2xl font-black text-yellow-400 mt-1">{{ stats.total_verifications }}회</div>
+            </div>
+            <div class="bg-[#1e293b] border border-gray-700 rounded-xl p-4">
+                <div class="text-xs text-gray-400">등록된 후기</div>
+                <div class="text-2xl font-black text-purple-400 mt-1">{{ stats.total_reviews }}건</div>
+            </div>
+        </div>
+
+        <!-- 전체 공지 알림 발송 -->
+        <div class="bg-[#1e293b] border border-gray-700 rounded-2xl p-5">
+            <h2 class="text-sm font-bold mb-3 flex items-center"><i class="fa-solid fa-paper-plane text-yellow-400 mr-2"></i>전체 회원 공지 알림 발송</h2>
+            <form action="/admin/notify" method="POST" class="grid md:grid-cols-4 gap-3">
+                <input type="text" name="title" required placeholder="공지 제목 (예: 일본 수수료 정책 안내)"
+                    class="p-2.5 bg-[#0f172a] border border-gray-600 rounded-lg text-xs">
+                <input type="text" name="message" required placeholder="알림 내용을 입력하세요"
+                    class="md:col-span-2 p-2.5 bg-[#0f172a] border border-gray-600 rounded-lg text-xs">
+                <button type="submit" class="py-2.5 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold transition">전체 발송</button>
+            </form>
+        </div>
+
+        <!-- 회원 관리 -->
+        <div class="bg-[#1e293b] border border-gray-700 rounded-2xl p-5 overflow-x-auto">
+            <h2 class="text-sm font-bold mb-3 flex items-center"><i class="fa-solid fa-users text-blue-400 mr-2"></i>회원 관리</h2>
+            <table class="w-full text-left text-xs">
+                <thead class="text-gray-400 border-b border-gray-700">
+                    <tr>
+                        <th class="py-2 px-3">ID</th>
+                        <th class="py-2 px-3">아이디</th>
+                        <th class="py-2 px-3">닉네임</th>
+                        <th class="py-2 px-3">선호 카드</th>
+                        <th class="py-2 px-3">권한</th>
+                        <th class="py-2 px-3">관리</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700/60">
+                    {% for u in users %}
+                    <tr>
+                        <td class="py-2.5 px-3">{{ u.id }}</td>
+                        <td class="py-2.5 px-3 font-bold">{{ u.username }}</td>
+                        <td class="py-2.5 px-3">{{ u.nickname }}</td>
+                        <td class="py-2.5 px-3 text-gray-300">{{ u.preferred_card }}</td>
+                        <td class="py-2.5 px-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ 'bg-purple-600/30 text-purple-300' if u.role == 'admin' else 'bg-gray-700 text-gray-300' }}">{{ u.role }}</span>
+                        </td>
+                        <td class="py-2.5 px-3 flex gap-1.5">
+                            <form action="/admin/users/{{ u.id }}/role" method="POST">
+                                <button type="submit" class="px-2 py-1 bg-gray-700 hover:bg-blue-600 rounded text-[10px]">권한 변경</button>
+                            </form>
+                            <form action="/admin/users/{{ u.id }}/delete" method="POST" onsubmit="return confirm('회원을 삭제하시겠습니까?');">
+                                <button type="submit" class="px-2 py-1 bg-red-900/60 hover:bg-red-700 text-red-200 rounded text-[10px]">삭제</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ATM 데이터 관리 -->
+        <div class="bg-[#1e293b] border border-gray-700 rounded-2xl p-5 overflow-x-auto">
+            <h2 class="text-sm font-bold mb-3 flex items-center"><i class="fa-solid fa-database text-emerald-400 mr-2"></i>등록 ATM 데이터 관리 ({{ atms|length }}건)</h2>
+            <table class="w-full text-left text-xs">
+                <thead class="text-gray-400 border-b border-gray-700">
+                    <tr>
+                        <th class="py-2 px-3">기기명</th>
+                        <th class="py-2 px-3">구분</th>
+                        <th class="py-2 px-3">수수료</th>
+                        <th class="py-2 px-3">제보자</th>
+                        <th class="py-2 px-3">검증</th>
+                        <th class="py-2 px-3">관리</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700/60">
+                    {% for a in atms %}
+                    <tr>
+                        <td class="py-2.5 px-3 font-bold"><a href="/atm/{{ a.id }}" class="hover:text-blue-400">{{ a.name }}</a></td>
+                        <td class="py-2.5 px-3">{{ a.feeType }}</td>
+                        <td class="py-2.5 px-3">{{ a.feeAmount }}</td>
+                        <td class="py-2.5 px-3 text-gray-400">{{ a.reporter }}</td>
+                        <td class="py-2.5 px-3">{{ a.verified }}</td>
+                        <td class="py-2.5 px-3">
+                            <form action="/admin/atms/{{ a.id }}/delete" method="POST" onsubmit="return confirm('ATM 데이터를 삭제하시겠습니까?');">
+                                <button type="submit" class="px-2 py-1 bg-red-900/60 hover:bg-red-700 text-red-200 rounded text-[10px]">삭제</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</body>
+</html>
