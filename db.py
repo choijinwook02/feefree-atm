@@ -1,6 +1,19 @@
-import sqlite3
 import os
+import sqlite3
 from werkzeug.security import generate_password_hash
+
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+    PG_INTEGRITY_ERROR = psycopg.errors.UniqueViolation
+except ImportError:
+    psycopg = None
+    dict_row = None
+    PG_INTEGRITY_ERROR = None
+
+INTEGRITY_ERRORS = tuple(
+    e for e in (sqlite3.IntegrityError, PG_INTEGRITY_ERROR) if e is not None
+)
 
 DB_PATH = os.environ.get(
     "FEEFREE_DB_PATH",
@@ -23,137 +36,300 @@ INITIAL_ATMS = [
 ]
 
 
+def _get_database_url():
+    url = (os.environ.get("DATABASE_URL") or "").strip()
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    return url
+
+
+def is_postgres(db_path=None):
+    return bool(_get_database_url()) and db_path is None
+
+
+class _PgCursorWrapper:
+    def __init__(self, cur):
+        self._cur = cur
+
+    def execute(self, sql, params=None):
+        pg_sql = sql.replace("?", "%s")
+        if params is None:
+            self._cur.execute(pg_sql)
+        else:
+            self._cur.execute(pg_sql, params)
+        return self
+
+    def executemany(self, sql, seq):
+        pg_sql = sql.replace("?", "%s")
+        self._cur.executemany(pg_sql, seq)
+        return self
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+
+class _PgConnWrapper:
+    """PostgreSQL 연결을 SQLite와 동일한 인터페이스(?, execute, cursor)로 통일"""
+    def __init__(self, raw_conn):
+        self._conn = raw_conn
+        self.is_pg = True
+
+    def cursor(self):
+        return _PgCursorWrapper(self._conn.cursor(row_factory=dict_row))
+
+    def execute(self, sql, params=None):
+        cur = self.cursor()
+        return cur.execute(sql, params)
+
+    def executemany(self, sql, seq):
+        cur = self.cursor()
+        return cur.executemany(sql, seq)
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
 def get_connection(db_path=None):
+    if is_postgres(db_path):
+        if psycopg is None:
+            raise RuntimeError("psycopg[binary] 패키지가 설치되어 있지 않습니다.")
+        raw = psycopg.connect(_get_database_url(), connect_timeout=10)
+        return _PgConnWrapper(raw)
+
     conn = sqlite3.connect(db_path or DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
 
-def _ensure_column(cur, table, column, definition):
+def _fmt_ts(val):
+    if val is None:
+        return ""
+    return str(val)[:19]
+
+
+def _ensure_sqlite_column(cur, table, column, definition):
     cols = [r["name"] for r in cur.execute(f"PRAGMA table_info({table})").fetchall()]
     if column not in cols:
         cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def init_db(db_path=None):
+    pg = is_postgres(db_path)
     conn = get_connection(db_path)
     cur = conn.cursor()
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            nickname TEXT NOT NULL,
-            preferred_card TEXT DEFAULT '트래블로그',
-            push_enabled INTEGER DEFAULT 1,
-            role TEXT DEFAULT 'user',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    if pg:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                nickname TEXT NOT NULL,
+                preferred_card TEXT DEFAULT '트래블로그',
+                push_enabled INTEGER DEFAULT 1,
+                role TEXT DEFAULT 'user',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS atms (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                lat DOUBLE PRECISION NOT NULL,
+                lng DOUBLE PRECISION NOT NULL,
+                fee_type TEXT NOT NULL,
+                fee_amount TEXT NOT NULL,
+                tip TEXT NOT NULL,
+                verified INTEGER DEFAULT 1,
+                reporter TEXT DEFAULT '시스템',
+                reporter_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS reviews (
+                id SERIAL PRIMARY KEY,
+                atm_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                nickname TEXT NOT NULL,
+                rating INTEGER NOT NULL DEFAULT 5,
+                comment TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS bookmarks (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                atm_id TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, atm_id)
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS notifications (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                is_read INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                nickname TEXT NOT NULL,
+                preferred_card TEXT DEFAULT '트래블로그',
+                push_enabled INTEGER DEFAULT 1,
+                role TEXT DEFAULT 'user',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS atms (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                lat REAL NOT NULL,
+                lng REAL NOT NULL,
+                fee_type TEXT NOT NULL,
+                fee_amount TEXT NOT NULL,
+                tip TEXT NOT NULL,
+                verified INTEGER DEFAULT 1,
+                reporter TEXT DEFAULT '시스템',
+                reporter_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        _ensure_sqlite_column(cur, "users", "preferred_card", "TEXT DEFAULT '트래블로그'")
+        _ensure_sqlite_column(cur, "users", "push_enabled", "INTEGER DEFAULT 1")
+        _ensure_sqlite_column(cur, "users", "role", "TEXT DEFAULT 'user'")
+        _ensure_sqlite_column(cur, "atms", "reporter_id", "INTEGER")
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS atms (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            lat REAL NOT NULL,
-            lng REAL NOT NULL,
-            fee_type TEXT NOT NULL,
-            fee_amount TEXT NOT NULL,
-            tip TEXT NOT NULL,
-            verified INTEGER DEFAULT 1,
-            reporter TEXT DEFAULT '시스템',
-            reporter_id INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                atm_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                nickname TEXT NOT NULL,
+                rating INTEGER NOT NULL DEFAULT 5,
+                comment TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS bookmarks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                atm_id TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, atm_id)
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                is_read INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    # 구버전 DB 파일이 남아있을 경우를 대비한 자동 컬럼 마이그레이션
-    _ensure_column(cur, "users", "preferred_card", "TEXT DEFAULT '트래블로그'")
-    _ensure_column(cur, "users", "push_enabled", "INTEGER DEFAULT 1")
-    _ensure_column(cur, "users", "role", "TEXT DEFAULT 'user'")
-    _ensure_column(cur, "atms", "reporter_id", "INTEGER")
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS reviews (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            atm_id TEXT NOT NULL,
-            user_id INTEGER NOT NULL,
-            nickname TEXT NOT NULL,
-            rating INTEGER NOT NULL DEFAULT 5,
-            comment TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS bookmarks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            atm_id TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(user_id, atm_id)
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            message TEXT NOT NULL,
-            is_read INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
-    # 기본 관리자 계정 (admin / 1234)
+    # 기본 관리자 계정 (admin / 1234) - 다중 워커 동시 실행 안전 처리
     cur.execute("SELECT id FROM users WHERE username = ?", ("admin",))
     if not cur.fetchone():
-        cur.execute(
-            """
-            INSERT INTO users (username, password_hash, nickname, preferred_card, role)
-            VALUES (?, ?, ?, ?, 'admin')
-            """,
-            ("admin", generate_password_hash("1234"), "관리자(발표자)", "트래블로그"),
-        )
-        admin_id = cur.lastrowid
-        cur.execute(
-            "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
-            (admin_id, "FeeFree ATM 시스템 가동", "관리자 계정으로 로그인되었습니다. 관리자 페이지에서 회원·ATM·공지 알림을 관리할 수 있습니다."),
-        )
+        admin_id = None
+        if pg:
+            cur.execute(
+                """
+                INSERT INTO users (username, password_hash, nickname, preferred_card, role)
+                VALUES (?, ?, ?, ?, 'admin')
+                ON CONFLICT (username) DO NOTHING
+                RETURNING id
+                """,
+                ("admin", generate_password_hash("1234"), "관리자(발표자)", "트래블로그"),
+            )
+            row = cur.fetchone()
+            admin_id = row["id"] if row else None
+        else:
+            cur.execute(
+                """
+                INSERT OR IGNORE INTO users (username, password_hash, nickname, preferred_card, role)
+                VALUES (?, ?, ?, ?, 'admin')
+                """,
+                ("admin", generate_password_hash("1234"), "관리자(발표자)", "트래블로그"),
+            )
+            admin_id = cur.lastrowid if cur.rowcount else None
+        if admin_id:
+            cur.execute(
+                "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
+                (admin_id, "FeeFree ATM 시스템 가동", "외부 DB 연동이 활성화되었습니다. 관리자 페이지에서 회원·ATM·공지 알림을 관리할 수 있습니다."),
+            )
 
     # 기본 일반 사용자 계정 (user1 / 1234)
     cur.execute("SELECT id FROM users WHERE username = ?", ("user1",))
     if not cur.fetchone():
-        cur.execute(
-            """
-            INSERT INTO users (username, password_hash, nickname, preferred_card, role)
-            VALUES (?, ?, ?, ?, 'user')
-            """,
-            ("user1", generate_password_hash("1234"), "여행러", "트래블월렛"),
-        )
-        u1_id = cur.lastrowid
-        cur.execute(
-            "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
-            (u1_id, "환영합니다!", "FeeFree ATM에서 전 세계 무료 ATM을 찾고 수수료를 절약해 보세요."),
-        )
+        u1_id = None
+        if pg:
+            cur.execute(
+                """
+                INSERT INTO users (username, password_hash, nickname, preferred_card, role)
+                VALUES (?, ?, ?, ?, 'user')
+                ON CONFLICT (username) DO NOTHING
+                RETURNING id
+                """,
+                ("user1", generate_password_hash("1234"), "여행러", "트래블월렛"),
+            )
+            row = cur.fetchone()
+            u1_id = row["id"] if row else None
+        else:
+            cur.execute(
+                """
+                INSERT OR IGNORE INTO users (username, password_hash, nickname, preferred_card, role)
+                VALUES (?, ?, ?, ?, 'user')
+                """,
+                ("user1", generate_password_hash("1234"), "여행러", "트래블월렛"),
+            )
+            u1_id = cur.lastrowid if cur.rowcount else None
+        if u1_id:
+            cur.execute(
+                "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
+                (u1_id, "환영합니다!", "FeeFree ATM에서 전 세계 무료 ATM을 찾고 수수료를 절약해 보세요."),
+            )
 
     cur.executemany(
         """
-        INSERT OR IGNORE INTO atms
+        INSERT INTO atms
         (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (id) DO NOTHING
         """,
         INITIAL_ATMS,
     )
 
-    cur.execute("SELECT COUNT(*) as cnt FROM reviews")
+    cur.execute("SELECT COUNT(*) AS cnt FROM reviews")
     if cur.fetchone()["cnt"] == 0:
+        cur.execute("SELECT id FROM users WHERE username = ?", ("admin",))
+        admin_row = cur.fetchone()
+        admin_uid = admin_row["id"] if admin_row else 1
         cur.execute(
             "INSERT INTO reviews (atm_id, user_id, nickname, rating, comment) VALUES (?, ?, ?, ?, ?)",
-            ("seed_1", 1, "관리자(발표자)", 5, "신주쿠역 동쪽 출구 세븐일레븐에서 트래블로그로 수수료 0원 출금 확인했습니다."),
+            ("seed_1", admin_uid, "관리자(발표자)", 5, "신주쿠역 동쪽 출구 세븐일레븐에서 트래블로그로 수수료 0원 출금 확인했습니다."),
         )
 
     conn.commit()
@@ -164,15 +340,15 @@ def format_atm_row(r):
     return {
         "id": r["id"],
         "name": r["name"],
-        "lat": r["lat"],
-        "lng": r["lng"],
+        "lat": float(r["lat"]),
+        "lng": float(r["lng"]),
         "feeType": r["fee_type"],
         "feeAmount": r["fee_amount"],
         "tip": r["tip"],
         "verified": r["verified"],
         "reporter": r["reporter"],
         "reporterId": r["reporter_id"],
-        "createdAt": r["created_at"],
+        "createdAt": _fmt_ts(r["created_at"]),
     }
 
 
@@ -194,8 +370,9 @@ def insert_atm(atm_id, name, lat, lng, fee_type, fee_amount, tip, reporter, repo
     conn = get_connection(db_path)
     conn.execute(
         """
-        INSERT OR IGNORE INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id)
+        INSERT INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (id) DO NOTHING
         """,
         (atm_id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id),
     )
@@ -209,16 +386,17 @@ def bulk_insert_atms(records, db_path=None):
         return 0
     conn = get_connection(db_path)
     cur = conn.cursor()
-    before = cur.execute("SELECT COUNT(*) FROM atms").fetchone()[0]
+    before = cur.execute("SELECT COUNT(*) AS cnt FROM atms").fetchone()["cnt"]
     cur.executemany(
         """
-        INSERT OR IGNORE INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id)
+        INSERT INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+        ON CONFLICT (id) DO NOTHING
         """,
         records,
     )
     conn.commit()
-    after = cur.execute("SELECT COUNT(*) FROM atms").fetchone()[0]
+    after = cur.execute("SELECT COUNT(*) AS cnt FROM atms").fetchone()["cnt"]
     conn.close()
     return after - before
 
@@ -255,6 +433,7 @@ def verify_atm_record(atm_id, payload=None, voter_nickname=None, db_path=None):
             """
             INSERT INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO NOTHING
             """,
             (
                 atm_id,
@@ -283,7 +462,12 @@ def get_reviews(atm_id, db_path=None):
         "SELECT * FROM reviews WHERE atm_id = ? ORDER BY created_at DESC", (atm_id,)
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        item = dict(r)
+        item["created_at"] = _fmt_ts(item.get("created_at"))
+        result.append(item)
+    return result
 
 
 def add_review(atm_id, user_id, nickname, rating, comment, db_path=None):
@@ -376,7 +560,12 @@ def get_notifications(user_id, db_path=None):
         (user_id,),
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        item = dict(r)
+        item["created_at"] = _fmt_ts(item.get("created_at"))
+        result.append(item)
+    return result
 
 
 def mark_notifications_read(user_id, db_path=None):
@@ -392,17 +581,22 @@ def get_all_users(db_path=None):
         "SELECT id, username, nickname, preferred_card, push_enabled, role, created_at FROM users ORDER BY id ASC"
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        item = dict(r)
+        item["created_at"] = _fmt_ts(item.get("created_at"))
+        result.append(item)
+    return result
 
 
 def get_admin_stats(db_path=None):
     conn = get_connection(db_path)
     stats = {
-        "total_users": conn.execute("SELECT COUNT(*) FROM users").fetchone()[0],
-        "total_atms": conn.execute("SELECT COUNT(*) FROM atms").fetchone()[0],
-        "total_verifications": conn.execute("SELECT COALESCE(SUM(verified), 0) FROM atms").fetchone()[0],
-        "total_reviews": conn.execute("SELECT COUNT(*) FROM reviews").fetchone()[0],
-        "total_notifications": conn.execute("SELECT COUNT(*) FROM notifications").fetchone()[0],
+        "total_users": conn.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()["cnt"],
+        "total_atms": conn.execute("SELECT COUNT(*) AS cnt FROM atms").fetchone()["cnt"],
+        "total_verifications": conn.execute("SELECT COALESCE(SUM(verified), 0) AS cnt FROM atms").fetchone()["cnt"],
+        "total_reviews": conn.execute("SELECT COUNT(*) AS cnt FROM reviews").fetchone()["cnt"],
+        "total_notifications": conn.execute("SELECT COUNT(*) AS cnt FROM notifications").fetchone()["cnt"],
     }
     conn.close()
     return stats
