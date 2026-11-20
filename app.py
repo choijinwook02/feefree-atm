@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import math
 import urllib.request
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -25,7 +26,8 @@ from db import (
     mark_notifications_read,
     get_all_users,
     get_admin_stats,
-    get_connection,
+    toggle_user_role,
+    delete_user_record,
 )
 from auth import (
     register_user,
@@ -58,7 +60,10 @@ def classify_osm_atm(name, amenity="", operator=""):
     if "familymart" in lower or "ファミリーマート" in raw_name or "패밀리마트" in raw_name:
         return "패밀리마트 E-net ATM", "MODERATE", "110~220엔", "편의점 기기 이용료 소액 부과"
 
-    if any(k in raw_name for k in ["하나은행", "국민은행", "KB", "신한은행", "우리은행", "농협", "NH", "기업은행", "IBK", "우체국", "새마을금고", "신협"]):
+    if (
+        any(k in raw_name for k in ["하나은행", "국민은행", "KB", "신한은행", "우리은행", "농협", "NH", "기업은행", "IBK", "우체국", "새마을금고", "신협"])
+        or any(k in lower for k in ["hana", "kb", "shinhan", "woori", "nh", "ibk", "post bank", "post office"])
+    ):
         return raw_name, "FREE", "0원 (자행/제휴 면제)", "자행 카드 및 제휴 트래블카드 수수료 면제"
 
     if any(k in lower for k in ["kasikorn", "krungsri", "scb", "bangkok bank", "krungthai", "ttb"]):
@@ -146,7 +151,8 @@ def fetch_photon_fallback(center_lat, center_lng, south, west, north, east):
                     if len(coords) >= 2:
                         lng, lat = float(coords[0]), float(coords[1])
                         if south <= lat <= north and west <= lng <= east:
-                            oid = str(props.get("osm_id", int(abs(lat * 100000 + lng * 100000))))
+                            raw_id = props.get("osm_id")
+                            oid = str(raw_id if raw_id is not None else int(abs(lat * 100000 + lng * 100000)))
                             if oid in seen:
                                 continue
                             seen.add(oid)
@@ -168,6 +174,7 @@ def fetch_photon_fallback(center_lat, center_lng, south, west, north, east):
 def fetch_nominatim_fallback(south, west, north, east):
     """3차 백업: OpenStreetMap Nominatim 영역 검색"""
     items = []
+    seen = set()
     headers = {"User-Agent": "FeeFreeATM-AcademicProject/1.0 (https://feefree-atm.onrender.com)"}
     for kw in ["atm", "bank"]:
         try:
@@ -183,9 +190,16 @@ def fetch_nominatim_fallback(south, west, north, east):
             with urllib.request.urlopen(req, timeout=6) as resp:
                 rows = json.loads(resp.read().decode("utf-8"))
                 for r in rows:
+                    raw_id = r.get("osm_id") or r.get("place_id")
+                    if not raw_id:
+                        continue
+                    oid = str(raw_id)
+                    if oid in seen:
+                        continue
+                    seen.add(oid)
                     items.append({
                         "type": r.get("osm_type", "node"),
-                        "id": r.get("osm_id", r.get("place_id")),
+                        "id": oid,
                         "lat": float(r["lat"]),
                         "lon": float(r["lon"]),
                         "tags": {
@@ -218,8 +232,14 @@ def login_page():
     return render_template("login.html", error=error, mode="login")
 
 
-@app.route("/register", methods=["POST"])
+@app.route("/register", methods=["GET", "POST"])
 def register_page():
+    if "user" in session:
+        return redirect(url_for("index"))
+
+    if request.method == "GET":
+        return render_template("login.html", mode="register")
+
     username = request.form.get("username", "")
     password = request.form.get("password", "")
     nickname = request.form.get("nickname", "")
@@ -269,8 +289,13 @@ def atm_detail(atm_id):
 @app.route("/atm/<atm_id>/review", methods=["POST"])
 @login_required
 def post_review(atm_id):
-    comment = (request.form.get("comment") or "").strip()
-    rating = request.form.get("rating", 5)
+    comment = (request.form.get("comment") or "").strip()[:1000]
+    raw_rating = request.form.get("rating", 5)
+    try:
+        rating = max(1, min(5, int(raw_rating)))
+    except (ValueError, TypeError):
+        rating = 5
+
     if comment:
         add_review(atm_id, session["user"]["id"], session["user"]["nickname"], rating, comment)
     return redirect(url_for("atm_detail", atm_id=atm_id))
@@ -373,13 +398,9 @@ def admin_notify():
 def admin_toggle_role(user_id):
     if user_id == session["user"]["id"]:
         return redirect(url_for("admin_page", msg="본인 권한은 변경할 수 없습니다."))
-    conn = get_connection()
-    row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
-    if row:
-        new_role = "user" if row["role"] == "admin" else "admin"
-        conn.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, user_id))
-        conn.commit()
-    conn.close()
+    res = toggle_user_role(user_id)
+    if not res:
+        return redirect(url_for("admin_page", msg="존재하지 않는 회원입니다."))
     return redirect(url_for("admin_page", msg="회원 권한이 변경되었습니다."))
 
 
@@ -388,13 +409,7 @@ def admin_toggle_role(user_id):
 def admin_delete_user(user_id):
     if user_id == session["user"]["id"]:
         return redirect(url_for("admin_page", msg="현재 로그인된 관리자 계정은 삭제할 수 없습니다."))
-    conn = get_connection()
-    conn.execute("DELETE FROM reviews WHERE user_id = ?", (user_id,))
-    conn.execute("DELETE FROM notifications WHERE user_id = ?", (user_id,))
-    conn.execute("DELETE FROM bookmarks WHERE user_id = ?", (user_id,))
-    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
-    conn.commit()
-    conn.close()
+    delete_user_record(user_id)
     return redirect(url_for("admin_page", msg="회원이 삭제되었습니다."))
 
 
@@ -416,8 +431,19 @@ def api_osm_collect():
         west = float(data["west"])
         north = float(data["north"])
         east = float(data["east"])
+        if any(math.isnan(v) or math.isinf(v) for v in (south, west, north, east)):
+            raise ValueError("NaN/Inf coordinates")
+        if not (-90 <= south <= 90 and -90 <= north <= 90 and -180 <= west <= 180 and -180 <= east <= 180):
+            raise ValueError("Coordinates out of range")
+        if south > north:
+            south, north = north, south
+        if west > east:
+            west, east = east, west
         center_lat = float(data.get("centerLat", (south + north) / 2))
         center_lng = float(data.get("centerLng", (west + east) / 2))
+        if any(math.isnan(v) or math.isinf(v) for v in (center_lat, center_lng)):
+            center_lat = (south + north) / 2
+            center_lng = (west + east) / 2
     except (KeyError, ValueError, TypeError):
         return jsonify({"error": "지도 좌표 범위가 올바르지 않습니다."}), 400
 
@@ -494,6 +520,10 @@ def api_add_atm():
     try:
         lat = float(data["lat"])
         lng = float(data["lng"])
+        if math.isnan(lat) or math.isinf(lat) or math.isnan(lng) or math.isinf(lng):
+            raise ValueError("NaN/Inf coordinates")
+        if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+            raise ValueError("Coordinates out of range")
     except (KeyError, ValueError, TypeError):
         return jsonify({"error": "올바른 위도/경도 좌표가 필요합니다."}), 400
 
@@ -553,8 +583,16 @@ def api_ensure_atm():
         try:
             lat = float(data["lat"])
             lng = float(data["lng"])
+            if math.isnan(lat) or math.isinf(lat) or math.isnan(lng) or math.isinf(lng):
+                raise ValueError("NaN/Inf coordinates")
+            if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+                raise ValueError("Coordinates out of range")
         except (KeyError, ValueError, TypeError):
-            return jsonify({"error": "좌표가 누락되었습니다."}), 400
+            return jsonify({"error": "좌표가 누락되었거나 올바르지 않습니다."}), 400
+        try:
+            verified_cnt = max(0, int(data.get("verified", 0)))
+        except (ValueError, TypeError):
+            verified_cnt = 0
         insert_atm(
             atm_id=atm_id,
             name=data.get("name", "현지 ATM"),
@@ -564,7 +602,7 @@ def api_ensure_atm():
             fee_amount=data.get("feeAmount", "수수료 확인 필요"),
             tip=data.get("tip", "OSM 실시간 수집 데이터"),
             reporter=data.get("reporter", "OSM"),
-            verified=0,
+            verified=verified_cnt,
         )
     return jsonify({"ok": True, "url": url_for("atm_detail", atm_id=atm_id)})
 

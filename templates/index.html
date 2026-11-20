@@ -466,7 +466,12 @@
             return `<div class="custom-marker ${colorClass}" style="width: 28px; height: 28px;">${symbol}</div>`;
         }
 
+        const verifiedSet = new Set();
         async function verifyATM(atm) {
+            if (verifiedSet.has(atm.id)) {
+                alert("이미 검증에 참여한 ATM입니다.");
+                return;
+            }
             try {
                 const res = await fetch('/api/atms/verify', {
                     method: 'POST',
@@ -475,6 +480,7 @@
                 });
                 if (!res.ok) throw new Error();
                 const updated = await res.json();
+                verifiedSet.add(atm.id);
                 const target = allATMs.find(a => a.id === atm.id);
                 if (target) target.verified = updated.verified;
                 applyFilters();
@@ -642,7 +648,8 @@
         }
         function calculateSavings() {
             const fee = parseInt(document.getElementById('calc-country').value, 10);
-            const count = parseInt(document.getElementById('calc-count').value, 10) || 0;
+            const count = Math.max(1, parseInt(document.getElementById('calc-count').value, 10) || 1);
+            document.getElementById('calc-count').value = count;
             const total = (fee * count).toLocaleString();
             const resultDiv = document.getElementById('calc-result');
             resultDiv.innerHTML = `예상 절감액: <span class="text-white text-lg">${total}원</span>`;

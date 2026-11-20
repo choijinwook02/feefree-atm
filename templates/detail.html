@@ -84,10 +84,11 @@
 
             <div class="space-y-3">
                 {% for r in reviews %}
+                {% set r_val = (r.rating|int) if (r.rating and (r.rating|int in [1, 2, 3, 4, 5])) else 5 %}
                 <div class="bg-[#0f172a] p-4 rounded-xl border border-gray-700/80">
                     <div class="flex justify-between items-center mb-1.5">
                         <span class="text-xs font-bold text-white">{{ r.nickname }}</span>
-                        <span class="text-xs text-yellow-400">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</span>
+                        <span class="text-xs text-yellow-400">{{ '★' * r_val }}{{ '☆' * (5 - r_val) }}</span>
                     </div>
                     <p class="text-xs text-gray-300">{{ r.comment }}</p>
                     <div class="text-[10px] text-gray-500 mt-1.5">{{ r.created_at }}</div>
@@ -105,15 +106,27 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(m);
         L.marker([{{ atm.lat }}, {{ atm.lng }}]).addTo(m).bindPopup({{ atm.name | tojson }}).openPopup();
 
+        let hasVerified = false;
         async function verifyHere() {
-            const res = await fetch('/api/atms/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: {{ atm.id | tojson }} })
-            });
-            if (res.ok) {
-                const data = await res.json();
-                document.getElementById('verify-cnt').textContent = data.verified;
+            if (hasVerified) return alert("이미 검증에 참여하셨습니다.");
+            const btn = document.getElementById('btn-verify');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/atms/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: {{ atm.id | tojson }} })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('verify-cnt').textContent = data.verified;
+                    hasVerified = true;
+                    btn.classList.add('opacity-70', 'cursor-not-allowed');
+                } else {
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                btn.disabled = false;
             }
         }
 

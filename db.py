@@ -51,6 +51,9 @@ class _PgCursorWrapper:
     def __init__(self, cur):
         self._cur = cur
 
+    def __getattr__(self, name):
+        return getattr(self._cur, name)
+
     def execute(self, sql, params=None):
         pg_sql = sql.replace("?", "%s")
         if params is None:
@@ -69,6 +72,17 @@ class _PgCursorWrapper:
 
     def fetchall(self):
         return self._cur.fetchall()
+
+    @property
+    def rowcount(self):
+        return getattr(self._cur, "rowcount", -1)
+
+    @property
+    def lastrowid(self):
+        return getattr(self._cur, "lastrowid", None)
+
+    def close(self):
+        return self._cur.close()
 
 
 class _PgConnWrapper:
@@ -354,30 +368,36 @@ def format_atm_row(r):
 
 def get_all_atms(db_path=None):
     conn = get_connection(db_path)
-    rows = conn.execute("SELECT * FROM atms ORDER BY created_at DESC").fetchall()
-    conn.close()
-    return [format_atm_row(r) for r in rows]
+    try:
+        rows = conn.execute("SELECT * FROM atms ORDER BY created_at DESC").fetchall()
+        return [format_atm_row(r) for r in rows]
+    finally:
+        conn.close()
 
 
 def get_atm_by_id(atm_id, db_path=None):
     conn = get_connection(db_path)
-    r = conn.execute("SELECT * FROM atms WHERE id = ?", (atm_id,)).fetchone()
-    conn.close()
-    return format_atm_row(r) if r else None
+    try:
+        r = conn.execute("SELECT * FROM atms WHERE id = ?", (atm_id,)).fetchone()
+        return format_atm_row(r) if r else None
+    finally:
+        conn.close()
 
 
 def insert_atm(atm_id, name, lat, lng, fee_type, fee_amount, tip, reporter, reporter_id=None, verified=1, db_path=None):
     conn = get_connection(db_path)
-    conn.execute(
-        """
-        INSERT INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (id) DO NOTHING
-        """,
-        (atm_id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id),
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            """
+            INSERT INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            (atm_id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def bulk_insert_atms(records, db_path=None):
@@ -385,218 +405,278 @@ def bulk_insert_atms(records, db_path=None):
     if not records:
         return 0
     conn = get_connection(db_path)
-    cur = conn.cursor()
-    before = cur.execute("SELECT COUNT(*) AS cnt FROM atms").fetchone()["cnt"]
-    cur.executemany(
-        """
-        INSERT INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
-        ON CONFLICT (id) DO NOTHING
-        """,
-        records,
-    )
-    conn.commit()
-    after = cur.execute("SELECT COUNT(*) AS cnt FROM atms").fetchone()["cnt"]
-    conn.close()
-    return after - before
+    try:
+        cur = conn.cursor()
+        before = cur.execute("SELECT COUNT(*) AS cnt FROM atms").fetchone()["cnt"]
+        cur.executemany(
+            """
+            INSERT INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter, reporter_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            records,
+        )
+        conn.commit()
+        after = cur.execute("SELECT COUNT(*) AS cnt FROM atms").fetchone()["cnt"]
+        return after - before
+    finally:
+        conn.close()
 
 
 def delete_atm_record(atm_id, db_path=None):
     conn = get_connection(db_path)
-    conn.execute("DELETE FROM reviews WHERE atm_id = ?", (atm_id,))
-    conn.execute("DELETE FROM bookmarks WHERE atm_id = ?", (atm_id,))
-    conn.execute("DELETE FROM atms WHERE id = ?", (atm_id,))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("DELETE FROM reviews WHERE atm_id = ?", (atm_id,))
+        conn.execute("DELETE FROM bookmarks WHERE atm_id = ?", (atm_id,))
+        conn.execute("DELETE FROM atms WHERE id = ?", (atm_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def verify_atm_record(atm_id, payload=None, voter_nickname=None, db_path=None):
     conn = get_connection(db_path)
-    cur = conn.cursor()
-    row = cur.execute("SELECT verified, reporter_id, name FROM atms WHERE id = ?", (atm_id,)).fetchone()
+    try:
+        cur = conn.cursor()
+        row = cur.execute("SELECT verified, reporter_id, name FROM atms WHERE id = ?", (atm_id,)).fetchone()
 
-    if row:
-        new_count = row["verified"] + 1
-        cur.execute("UPDATE atms SET verified = ? WHERE id = ?", (new_count, atm_id))
-        if row["reporter_id"] and voter_nickname:
+        if row:
+            new_count = (row["verified"] or 0) + 1
+            cur.execute("UPDATE atms SET verified = ? WHERE id = ?", (new_count, atm_id))
+            if row["reporter_id"] and voter_nickname:
+                cur.execute(
+                    "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
+                    (
+                        row["reporter_id"],
+                        "제보 검증 알림",
+                        f"{voter_nickname}님이 회원님이 제보한 '{row['name']}'에 '정보 맞음(+1)'을 눌렀습니다.",
+                    ),
+                )
+        elif payload and "lat" in payload and "lng" in payload:
+            new_count = int(payload.get("verified", 0)) + 1
             cur.execute(
-                "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
+                """
+                INSERT INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (id) DO NOTHING
+                """,
                 (
-                    row["reporter_id"],
-                    "제보 검증 알림",
-                    f"{voter_nickname}님이 회원님이 제보한 '{row['name']}'에 '정보 맞음(+1)'을 눌렀습니다.",
+                    atm_id,
+                    payload.get("name", "현지 ATM"),
+                    float(payload["lat"]),
+                    float(payload["lng"]),
+                    payload.get("feeType", "MODERATE"),
+                    payload.get("feeAmount", "수수료 확인 필요"),
+                    payload.get("tip", "OSM 수집 + 사용자 검증"),
+                    new_count,
+                    payload.get("reporter", "OSM"),
                 ),
             )
-    elif payload and "lat" in payload and "lng" in payload:
-        new_count = int(payload.get("verified", 0)) + 1
-        cur.execute(
-            """
-            INSERT INTO atms (id, name, lat, lng, fee_type, fee_amount, tip, verified, reporter)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (id) DO NOTHING
-            """,
-            (
-                atm_id,
-                payload.get("name", "현지 ATM"),
-                float(payload["lat"]),
-                float(payload["lng"]),
-                payload.get("feeType", "MODERATE"),
-                payload.get("feeAmount", "수수료 확인 필요"),
-                payload.get("tip", "OSM 수집 + 사용자 검증"),
-                new_count,
-                payload.get("reporter", "OSM"),
-            ),
-        )
-    else:
-        conn.close()
-        return None
+        else:
+            return None
 
-    conn.commit()
-    conn.close()
-    return new_count
+        conn.commit()
+        return new_count
+    finally:
+        conn.close()
 
 
 def get_reviews(atm_id, db_path=None):
     conn = get_connection(db_path)
-    rows = conn.execute(
-        "SELECT * FROM reviews WHERE atm_id = ? ORDER BY created_at DESC", (atm_id,)
-    ).fetchall()
-    conn.close()
-    result = []
-    for r in rows:
-        item = dict(r)
-        item["created_at"] = _fmt_ts(item.get("created_at"))
-        result.append(item)
-    return result
+    try:
+        rows = conn.execute(
+            "SELECT * FROM reviews WHERE atm_id = ? ORDER BY created_at DESC", (atm_id,)
+        ).fetchall()
+        result = []
+        for r in rows:
+            item = dict(r)
+            item["created_at"] = _fmt_ts(item.get("created_at"))
+            result.append(item)
+        return result
+    finally:
+        conn.close()
 
 
 def add_review(atm_id, user_id, nickname, rating, comment, db_path=None):
-    rating_val = max(1, min(5, int(rating)))
+    try:
+        rating_val = max(1, min(5, int(rating)))
+    except (ValueError, TypeError):
+        rating_val = 5
     conn = get_connection(db_path)
-    conn.execute(
-        "INSERT INTO reviews (atm_id, user_id, nickname, rating, comment) VALUES (?, ?, ?, ?, ?)",
-        (atm_id, user_id, nickname, rating_val, comment.strip()),
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            "INSERT INTO reviews (atm_id, user_id, nickname, rating, comment) VALUES (?, ?, ?, ?, ?)",
+            (atm_id, user_id, nickname, rating_val, (comment or "").strip()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def toggle_bookmark(user_id, atm_id, db_path=None):
     conn = get_connection(db_path)
-    cur = conn.cursor()
-    exists = cur.execute(
-        "SELECT id FROM bookmarks WHERE user_id = ? AND atm_id = ?", (user_id, atm_id)
-    ).fetchone()
-    if exists:
-        cur.execute("DELETE FROM bookmarks WHERE id = ?", (exists["id"],))
-        bookmarked = False
-    else:
-        cur.execute("INSERT INTO bookmarks (user_id, atm_id) VALUES (?, ?)", (user_id, atm_id))
-        bookmarked = True
-    conn.commit()
-    conn.close()
-    return bookmarked
+    try:
+        cur = conn.cursor()
+        exists = cur.execute(
+            "SELECT id FROM bookmarks WHERE user_id = ? AND atm_id = ?", (user_id, atm_id)
+        ).fetchone()
+        if exists:
+            cur.execute("DELETE FROM bookmarks WHERE id = ?", (exists["id"],))
+            bookmarked = False
+        else:
+            cur.execute("INSERT INTO bookmarks (user_id, atm_id) VALUES (?, ?)", (user_id, atm_id))
+            bookmarked = True
+        conn.commit()
+        return bookmarked
+    finally:
+        conn.close()
 
 
 def is_bookmarked(user_id, atm_id, db_path=None):
     conn = get_connection(db_path)
-    row = conn.execute(
-        "SELECT id FROM bookmarks WHERE user_id = ? AND atm_id = ?", (user_id, atm_id)
-    ).fetchone()
-    conn.close()
-    return row is not None
+    try:
+        row = conn.execute(
+            "SELECT id FROM bookmarks WHERE user_id = ? AND atm_id = ?", (user_id, atm_id)
+        ).fetchone()
+        return row is not None
+    finally:
+        conn.close()
 
 
 def get_user_bookmarks(user_id, db_path=None):
     conn = get_connection(db_path)
-    rows = conn.execute(
-        """
-        SELECT a.* FROM atms a
-        JOIN bookmarks b ON a.id = b.atm_id
-        WHERE b.user_id = ?
-        ORDER BY b.created_at DESC
-        """,
-        (user_id,),
-    ).fetchall()
-    conn.close()
-    return [format_atm_row(r) for r in rows]
+    try:
+        rows = conn.execute(
+            """
+            SELECT a.* FROM atms a
+            JOIN bookmarks b ON a.id = b.atm_id
+            WHERE b.user_id = ?
+            ORDER BY b.created_at DESC
+            """,
+            (user_id,),
+        ).fetchall()
+        return [format_atm_row(r) for r in rows]
+    finally:
+        conn.close()
 
 
 def get_user_reported_atms(user_id, db_path=None):
     conn = get_connection(db_path)
-    rows = conn.execute(
-        "SELECT * FROM atms WHERE reporter_id = ? ORDER BY created_at DESC", (user_id,)
-    ).fetchall()
-    conn.close()
-    return [format_atm_row(r) for r in rows]
+    try:
+        rows = conn.execute(
+            "SELECT * FROM atms WHERE reporter_id = ? ORDER BY created_at DESC", (user_id,)
+        ).fetchall()
+        return [format_atm_row(r) for r in rows]
+    finally:
+        conn.close()
 
 
 def add_notification(user_id, title, message, db_path=None):
     conn = get_connection(db_path)
-    conn.execute(
-        "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
-        (user_id, title, message),
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
+            (user_id, title, message),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def broadcast_notification(title, message, db_path=None):
     conn = get_connection(db_path)
-    users = conn.execute("SELECT id FROM users").fetchall()
-    conn.executemany(
-        "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
-        [(u["id"], title, message) for u in users],
-    )
-    conn.commit()
-    conn.close()
-    return len(users)
+    try:
+        users = conn.execute("SELECT id FROM users").fetchall()
+        conn.executemany(
+            "INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)",
+            [(u["id"], title, message) for u in users],
+        )
+        conn.commit()
+        return len(users)
+    finally:
+        conn.close()
 
 
 def get_notifications(user_id, db_path=None):
     conn = get_connection(db_path)
-    rows = conn.execute(
-        "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 30",
-        (user_id,),
-    ).fetchall()
-    conn.close()
-    result = []
-    for r in rows:
-        item = dict(r)
-        item["created_at"] = _fmt_ts(item.get("created_at"))
-        result.append(item)
-    return result
+    try:
+        rows = conn.execute(
+            "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 30",
+            (user_id,),
+        ).fetchall()
+        result = []
+        for r in rows:
+            item = dict(r)
+            item["created_at"] = _fmt_ts(item.get("created_at"))
+            result.append(item)
+        return result
+    finally:
+        conn.close()
 
 
 def mark_notifications_read(user_id, db_path=None):
     conn = get_connection(db_path)
-    conn.execute("UPDATE notifications SET is_read = 1 WHERE user_id = ?", (user_id,))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("UPDATE notifications SET is_read = 1 WHERE user_id = ?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_all_users(db_path=None):
     conn = get_connection(db_path)
-    rows = conn.execute(
-        "SELECT id, username, nickname, preferred_card, push_enabled, role, created_at FROM users ORDER BY id ASC"
-    ).fetchall()
-    conn.close()
-    result = []
-    for r in rows:
-        item = dict(r)
-        item["created_at"] = _fmt_ts(item.get("created_at"))
-        result.append(item)
-    return result
+    try:
+        rows = conn.execute(
+            "SELECT id, username, nickname, preferred_card, push_enabled, role, created_at FROM users ORDER BY id ASC"
+        ).fetchall()
+        result = []
+        for r in rows:
+            item = dict(r)
+            item["created_at"] = _fmt_ts(item.get("created_at"))
+            result.append(item)
+        return result
+    finally:
+        conn.close()
 
 
 def get_admin_stats(db_path=None):
     conn = get_connection(db_path)
-    stats = {
-        "total_users": conn.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()["cnt"],
-        "total_atms": conn.execute("SELECT COUNT(*) AS cnt FROM atms").fetchone()["cnt"],
-        "total_verifications": conn.execute("SELECT COALESCE(SUM(verified), 0) AS cnt FROM atms").fetchone()["cnt"],
-        "total_reviews": conn.execute("SELECT COUNT(*) AS cnt FROM reviews").fetchone()["cnt"],
-        "total_notifications": conn.execute("SELECT COUNT(*) AS cnt FROM notifications").fetchone()["cnt"],
-    }
-    conn.close()
+    try:
+        stats = {
+            "total_users": conn.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()["cnt"],
+            "total_atms": conn.execute("SELECT COUNT(*) AS cnt FROM atms").fetchone()["cnt"],
+            "total_verifications": conn.execute("SELECT COALESCE(SUM(verified), 0) AS cnt FROM atms").fetchone()["cnt"],
+            "total_reviews": conn.execute("SELECT COUNT(*) AS cnt FROM reviews").fetchone()["cnt"],
+            "total_notifications": conn.execute("SELECT COUNT(*) AS cnt FROM notifications").fetchone()["cnt"],
+        }
+        return stats
+    finally:
+        conn.close()
+
+
+def toggle_user_role(user_id, db_path=None):
+    conn = get_connection(db_path)
+    try:
+        row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+        if row:
+            new_role = "user" if row["role"] == "admin" else "admin"
+            conn.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, user_id))
+            conn.commit()
+            return new_role
+        return None
+    finally:
+        conn.close()
+
+
+def delete_user_record(user_id, db_path=None):
+    conn = get_connection(db_path)
+    try:
+        conn.execute("DELETE FROM reviews WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM notifications WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM bookmarks WHERE user_id = ?", (user_id,))
+        conn.execute("UPDATE atms SET reporter_id = NULL WHERE reporter_id = ?", (user_id,))
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
     return stats

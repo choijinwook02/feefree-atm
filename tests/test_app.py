@@ -124,6 +124,53 @@ class FeeFreeATMTestCase(unittest.TestCase):
         titles = [n["title"] for n in n_res.get_json()["items"]]
         self.assertIn("테스트 공지", titles)
 
+    def test_07_input_validation_and_safety(self):
+        """[안정성 테스트] 비정상 좌표(NaN/Inf/범위초과) 차단 및 평점 예외 처리"""
+        self.login("admin", "1234")
+
+        # 1. NaN 위도 좌표 차단
+        nan_res = self.client.post(
+            "/api/atms",
+            json={"name": "비정상 좌표 ATM", "lat": "NaN", "lng": 127.0},
+        )
+        self.assertEqual(nan_res.status_code, 400)
+
+        # 2. 범위 벗어난 좌표 차단 (lat > 90)
+        out_res = self.client.post(
+            "/api/atms",
+            json={"name": "범위 초과 ATM", "lat": 95.0, "lng": 127.0},
+        )
+        self.assertEqual(out_res.status_code, 400)
+
+        # 3. OSM 수집 API에서도 잘못된 범위 차단
+        osm_res = self.client.post(
+            "/api/osm/collect",
+            json={"south": "NaN", "west": 100.0, "north": 40.0, "east": 140.0},
+        )
+        self.assertEqual(osm_res.status_code, 400)
+
+        # 4. 숫자가 아닌 평점 문자열 전송 시 500 에러 없이 정상 처리
+        rev_res = self.client.post(
+            "/atm/seed_1/review",
+            data={"rating": "not-a-number", "comment": "평점 예외 방어 테스트"},
+            follow_redirects=True,
+        )
+        self.assertEqual(rev_res.status_code, 200)
+
+    def test_08_get_register_page_allowed(self):
+        """[접근성 테스트] GET /register 요청 시 405 없이 정상 렌더링"""
+        res = self.client.get("/register")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("FeeFree ATM", res.get_data(as_text=True))
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            if os.path.exists(tmp_db.name):
+                os.remove(tmp_db.name)
+        except Exception:
+            pass
+
 
 if __name__ == "__main__":
     unittest.main()

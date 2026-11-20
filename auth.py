@@ -61,12 +61,30 @@ def register_user(username, password, nickname, preferred_card="트래블로그"
 
 def authenticate_user(username, password, db_path=None):
     conn = get_connection(db_path)
-    user = conn.execute(
-        "SELECT * FROM users WHERE username = ?", (username.strip(),)
-    ).fetchone()
-    conn.close()
+    try:
+        user = conn.execute(
+            "SELECT * FROM users WHERE username = ?", (username.strip(),)
+        ).fetchone()
+        if user and check_password_hash(user["password_hash"], password):
+            return {
+                "id": user["id"],
+                "username": user["username"],
+                "nickname": user["nickname"],
+                "preferred_card": user["preferred_card"],
+                "push_enabled": bool(user["push_enabled"]),
+                "role": user["role"],
+            }
+        return None
+    finally:
+        conn.close()
 
-    if user and check_password_hash(user["password_hash"], password):
+
+def get_user_by_id(user_id, db_path=None):
+    conn = get_connection(db_path)
+    try:
+        user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not user:
+            return None
         return {
             "id": user["id"],
             "username": user["username"],
@@ -75,51 +93,38 @@ def authenticate_user(username, password, db_path=None):
             "push_enabled": bool(user["push_enabled"]),
             "role": user["role"],
         }
-    return None
-
-
-def get_user_by_id(user_id, db_path=None):
-    conn = get_connection(db_path)
-    user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-    conn.close()
-    if not user:
-        return None
-    return {
-        "id": user["id"],
-        "username": user["username"],
-        "nickname": user["nickname"],
-        "preferred_card": user["preferred_card"],
-        "push_enabled": bool(user["push_enabled"]),
-        "role": user["role"],
-    }
+    finally:
+        conn.close()
 
 
 def update_user_profile(user_id, nickname, preferred_card, push_enabled, db_path=None):
     conn = get_connection(db_path)
-    conn.execute(
-        "UPDATE users SET nickname = ?, preferred_card = ?, push_enabled = ? WHERE id = ?",
-        (nickname.strip(), preferred_card, 1 if push_enabled else 0, user_id),
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            "UPDATE users SET nickname = ?, preferred_card = ?, push_enabled = ? WHERE id = ?",
+            ((nickname or "").strip(), preferred_card, 1 if push_enabled else 0, user_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def update_user_password(user_id, current_password, new_password, db_path=None):
     conn = get_connection(db_path)
-    user = conn.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
-    if not user or not check_password_hash(user["password_hash"], current_password):
+    try:
+        user = conn.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not user or not check_password_hash(user["password_hash"], current_password):
+            return False, "현재 비밀번호가 일치하지 않습니다."
+        if len(new_password) < 4:
+            return False, "새 비밀번호는 4자 이상 입력해주세요."
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (generate_password_hash(new_password), user_id),
+        )
+        conn.commit()
+        return True, "비밀번호가 성공적으로 변경되었습니다."
+    finally:
         conn.close()
-        return False, "현재 비밀번호가 일치하지 않습니다."
-    if len(new_password) < 4:
-        conn.close()
-        return False, "새 비밀번호는 4자 이상 입력해주세요."
-    conn.execute(
-        "UPDATE users SET password_hash = ? WHERE id = ?",
-        (generate_password_hash(new_password), user_id),
-    )
-    conn.commit()
-    conn.close()
-    return True, "비밀번호가 성공적으로 변경되었습니다."
 
 
 def login_required(view_func):
@@ -138,8 +143,12 @@ def admin_required(view_func):
     @wraps(view_func)
     def wrapped(*args, **kwargs):
         if "user" not in session:
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "로그인이 필요합니다."}), 401
             return redirect(url_for("login_page"))
         if session["user"].get("role") != "admin":
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "관리자 권한이 필요합니다."}), 403
             return "관리자 권한이 필요합니다.", 403
         return view_func(*args, **kwargs)
 
